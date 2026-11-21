@@ -1,0 +1,21 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+*.spec.bak
+tests/fixtures/generated/
+.env
+.claude/settings.local.json
+
+# Model files are fetched by scripts/fetch_models.py and shipped only in release ZIPs
+models/*
+!models/MODELS.md
+# Local, never commit real photos
+*.jpg
+*.jpeg
+*.JPG
+*.JPEG
+!tests/fixtures/faces/*.jpg
