@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FotoDünner</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <main class="start">
+    <div class="glow" aria-hidden="true"></div>
+    <h1>Foto<span>Dünner</span></h1>
+    <p class="lead">Analysiert Ihr Urlaubsalbum und schlägt vor, was weg kann.<br>
+      Es wird nichts gelöscht – aussortierte Bilder lassen sich jederzeit zurückholen.</p>
+    <button class="primary" type="button" disabled title="Kommt in Meilenstein M2">Ordner wählen …</button>
+    <p class="hint">Tipp: Testen Sie FotoDünner zuerst mit einer Kopie eines Urlaubsordners.</p>
+    <footer id="version">Version –</footer>
+  </main>
+  <script type="module">
+    const res = await fetch("/api/version");
+    if (res.ok) document.getElementById("version").textContent = `Version ${(await res.json()).version}`;
+  </script>
+</body>
+</html>

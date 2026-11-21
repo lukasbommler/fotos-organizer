@@ -1,0 +1,93 @@
+/* FotoDünner – dark only (DECISIONS D9). Animate only transform/opacity. */
+:root {
+  color-scheme: dark;
+  --bg: #0b0d12;
+  --surface: #141821;
+  --text: #e8ebf2;
+  --muted: #8b93a7;
+  --accent: #7c9cff;
+  --accent-2: #b48cff;
+  --keep: #3ddc97;
+  --reject: #ff5c7a;
+  --review: #ffc857;
+  font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.start {
+  position: relative;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  padding: 2rem;
+  text-align: center;
+  overflow: hidden;
+}
+
+.glow {
+  position: absolute;
+  width: 60vmax;
+  height: 60vmax;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(124 156 255 / 0.18), rgb(180 140 255 / 0.06) 45%, transparent 70%);
+  animation: drift 14s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes drift {
+  from { transform: translate(-8%, -6%) scale(1); opacity: 0.8; }
+  to { transform: translate(8%, 6%) scale(1.1); opacity: 1; }
+}
+
+h1 {
+  position: relative;
+  margin: 0;
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+h1 span {
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.lead { position: relative; max-width: 36rem; margin: 0; color: var(--muted); line-height: 1.6; }
+
+button.primary {
+  position: relative;
+  padding: 0.85rem 2rem;
+  border: 1px solid rgb(124 156 255 / 0.5);
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgb(124 156 255 / 0.25), rgb(180 140 255 / 0.25));
+  color: var(--text);
+  font: inherit;
+  font-size: 1.05rem;
+  cursor: pointer;
+  transition: transform 150ms ease, opacity 150ms ease;
+}
+
+button.primary:hover:not(:disabled) { transform: translateY(-1px); }
+button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.hint { position: relative; margin: 0; font-size: 0.85rem; color: var(--muted); }
+
+footer { position: absolute; bottom: 1rem; font-size: 0.75rem; color: var(--muted); opacity: 0.6; }
+
+@media (prefers-reduced-motion: reduce) {
+  .glow { animation: none; }
+  button.primary { transition: none; }
+}
