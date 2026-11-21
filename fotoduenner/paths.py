@@ -38,8 +38,20 @@ def web_dir() -> Path:
     return Path(__file__).resolve().parent / "web"
 
 
+def dev_models_dir() -> Path:
+    """Model cache for development, outside Google Drive (docs/DECISIONS.md A8)."""
+    base = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
+    return Path(base) / "FotoDuenner-dev" / "models"
+
+
 def models_dir() -> Path:
-    return resource_dir() / "models"
+    """Runtime model directory: env override > PyInstaller bundle > development cache."""
+    override = os.environ.get("FOTODUENNER_MODELS")
+    if override:
+        return Path(override)
+    if getattr(sys, "_MEIPASS", None):
+        return resource_dir() / "models"
+    return dev_models_dir()
 
 
 def long_path(path: Path) -> Path:

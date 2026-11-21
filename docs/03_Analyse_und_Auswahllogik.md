@@ -65,10 +65,11 @@ Auf `img_1024`, Luminanz Y (0..255):
 - Gesichter mit `size_rel < 0,015` verwerfen (Rauschen, Menschenmenge in der Ferne).
 - **Gesichtsschärfe:** Box um 20 % erweitern, aus `img_1600` ausschneiden, auf 160 × 160 skalieren, Laplace-Varianz → album-relativer Rang. **Zweiter Durchgang (T6):** Für Serienmitglieder mit Gesichtern wird das Original in voller Auflösung dekodiert und die Gesichtsschärfe auf dem nativen Ausschnitt (ohne Hochskalieren) neu bestimmt – nur so sind feine Unterschiede innerhalb einer Serie sichtbar.
 - **Augen offen:** nur für Gesichter mit `size_rel ≥ 0,04` (kleiner ist unzuverlässig → `eyes_open = null`). Teil von v1 (D6).
-  - **Variante wird im M0-Spike entschieden (D6):**
-    - (a) MediaPipe **Face Landmarker** (`face_landmarker.task`, Apache-2.0) mit `output_face_blendshapes=True` auf dem erweiterten Gesichtsausschnitt; `eyes_open = 1 − max(eyeBlinkLeft, eyeBlinkRight)`. Problem: `mediapipe` hängt von `opencv-contrib-python` ab, das mit `opencv-python-headless` kollidiert.
-    - (b) Reines ONNX-Landmarkenmodell (z. B. PFLD/2DFAN-Varianten mit 68 Punkten oder MediaPipe-FaceMesh als ONNX), `eyes_open` aus der Eye-Aspect-Ratio.
-  - Kriterien: Paketkonflikt lösbar? PyInstaller-Build funktioniert? Genauigkeit auf Testbildern, Laufzeit. Ergebnis in DECISIONS.md.
+  - **Umsetzung (M0-Spike, D17):** MediaPipe *Face Mesh V2* + *Blendshape V2*, nach ONNX konvertiert, ausgeführt mit ONNX Runtime (kein `mediapipe`-Paket). Ein-/Ausgaben siehe `models/MODELS.md`.
+    1. Ausschnitt aus YuNet: Mittelpunkt der Box, Drehung so, dass die Augenlinie waagerecht ist, Quadrat mit Seitenlänge 1,5 × max(Boxbreite, Boxhöhe) → 256 × 256, RGB 0..1.
+    2. Landmarken (478 Punkte) → zweiter Durchgang mit Ausschnitt aus den Landmarken (Drehung über Punkte 33 → 263, Hüllrechteck × 1,5) für einen stabileren Ausschnitt.
+    3. 146 ausgewählte Punkte in Bildpixeln → Blendshape-Modell → `eyes_open = 1 − max(eyeBlinkLeft, eyeBlinkRight)`.
+    4. Präsenzwert (Sigmoid) < `EYES_MIN_PRESENCE` (0,5) → `eyes_open = null`.
   - Sonnenbrille/abgewandt → Werte unsicher; bei Konfidenz niedrig `null`.
 - **Abgeleitet:**
   - `prominence` = max(`size_rel`) der Gesichter.
@@ -244,7 +245,7 @@ Bezugsbilder werden mit ihrer Position in der Gruppe angegeben und in der UI bei
 ALGO_VERSION = 1
 DECODE_TARGET = 1600; DECODE_MIN_LONG_EDGE = 1500
 FACE_SCORE_THRESHOLD = 0.75; FACE_MIN_SIZE_REL = 0.015
-PEOPLE_MIN_SIZE_REL = 0.035; PEOPLE_MIN_CONF = 0.85; EYES_MIN_SIZE_REL = 0.04
+PEOPLE_MIN_SIZE_REL = 0.035; PEOPLE_MIN_CONF = 0.85; EYES_MIN_SIZE_REL = 0.04; EYES_MIN_PRESENCE = 0.5
 PHASH_SERIES_MAX = 8; SERIES_PHASH_DT = 120; SERIES_COS_MIN = 0.95; SERIES_COS_DT = 300
 SEQ_MAX_GAP = 3.0; SEQ_MIN_LEN = 3; BRACKET_MIN_EV_SPAN = 0.7
 PANO_SHIFT_MIN = 0.15; PANO_SHIFT_MAX = 0.70; PANO_MIN_PEAK = 0.1

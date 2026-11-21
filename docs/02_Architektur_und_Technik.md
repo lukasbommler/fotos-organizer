@@ -37,7 +37,7 @@
 | EXIF / XMP | Pillow `getexif()`, eingebettetes XMP; `.xmp`-Sidecar per XML-Parser | Aufnahmezeit, Orientierung, Kamera, Rating, `ExposureBiasValue` |
 | Bildoperationen | `opencv-python-headless` ≥ 4.9, NumPy | Laplace-Schärfe, YuNet-Gesichtsdetektor, Phasenkorrelation |
 | ML-Inferenz | `onnxruntime` (CPU) | Klein (~50 MB), schnell auf CPU, kein PyTorch nötig |
-| Augen offen | MediaPipe Face Landmarker **oder** reines ONNX-Landmarkenmodell – Entscheidung im M0-Spike (D6) | MediaPipe hängt von `opencv-contrib-python` ab, Konflikt mit `opencv-python-headless` |
+| Augen offen | MediaPipe Face Mesh V2 + Blendshape V2, **nach ONNX konvertiert**, über `onnxruntime` (D17) | Kein `mediapipe`-Paket → kein OpenCV-Konflikt, kleineres Paket |
 | Perzeptueller Hash | eigene pHash-Implementierung mit NumPy | Schnelle Erkennung fast identischer Bilder |
 | Datei-Hash | `hashlib` (BLAKE2b) über den Dateiinhalt | Exakte Duplikate (T7) |
 | Clustering | NumPy/SciPy (`scipy.cluster.hierarchy`) | 2.000×2.000 Distanzmatrix ist trivial; scikit-learn nicht nötig |

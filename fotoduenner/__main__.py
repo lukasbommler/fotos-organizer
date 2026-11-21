@@ -41,17 +41,24 @@ def start_server(port: int) -> tuple[uvicorn.Server, threading.Thread]:
     return server, thread
 
 
+def say(message: str) -> None:
+    """Log, and print when a console exists (a windowed PyInstaller build has no stdout)."""
+    log.info(message)
+    if sys.stdout is not None:
+        print(message, flush=True)
+
+
 def run_window(url: str, smoke_test: bool) -> None:
     import webview  # imported lazily so --no-window works without a GUI stack
 
     window = webview.create_window(
-        WINDOW_TITLE, url, width=1280, height=820, min_size=(1024, 640), background_color="#0b0d12"
+        WINDOW_TITLE, url, width=1280, height=820, min_size=(1024, 640), background_color="#0c0d0e"
     )
 
     def smoke(win: webview.Window) -> None:
         # Wait for the page, report its title, then close the window.
         win.events.loaded.wait(20)
-        print(f"SMOKE page title: {win.evaluate_js('document.title')}", flush=True)
+        say(f"SMOKE page title: {win.evaluate_js('document.title')}")
         win.destroy()
 
     if smoke_test:
@@ -64,14 +71,21 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="fotoduenner")
     parser.add_argument("--no-window", action="store_true", help="only run the server")
     parser.add_argument("--smoke-test", action="store_true", help="open window, then close")
+    parser.add_argument("--self-check", action="store_true", help="load all models, then exit")
     args = parser.parse_args(argv)
 
     setup_logging()
+    if args.self_check:
+        from fotoduenner.selfcheck import run_selfcheck
+
+        problems = run_selfcheck()
+        say("SELFCHECK ok" if not problems else f"SELFCHECK failed: {problems}")
+        return 0 if not problems else 1
+
     port = find_free_port()
     server, thread = start_server(port)
     url = f"http://{HOST}:{port}/"
-    log.info("FotoDünner %s serving on %s", __version__, url)
-    print(f"FotoDünner {__version__} on {url}", flush=True)
+    say(f"FotoDünner {__version__} on {url}")
 
     try:
         if args.no_window:

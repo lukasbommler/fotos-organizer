@@ -36,6 +36,7 @@ class Config:
     people_min_size_rel: float = 0.035
     people_min_conf: float = 0.85
     eyes_min_size_rel: float = 0.04
+    eyes_min_presence: float = 0.5
 
     # Series, level 1 (03 §5.1)
     phash_series_max: int = 8
