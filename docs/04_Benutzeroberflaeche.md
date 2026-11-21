@@ -2,9 +2,12 @@
 
 HTML-Oberfläche in einem **eigenen Programmfenster** (pywebview / Edge WebView2, D4), technisch geladen von `http://127.0.0.1:<port>`. Sprache Deutsch. Zielauflösung ab 1366 × 768 (typischer Office-Laptop), skaliert bis 4K. Bedienung vollständig mit Maus **und** Tastatur.
 
-## 0. Gestaltung (D9)
+## 0. Gestaltung (D9, D16)
 
-- **Nur dunkles Design**, futuristisch-elegant („KI-Tool“), trotzdem einfach. Kein Hell-Modus.
+- **Nur dunkles Design**, futuristisch und professionell – ein **Präzisionsinstrument am Leuchttisch**, ausdrücklich **kein** generischer „KI-Tool“-Look (keine Lila/Blau-Verläufe, kein Glow, kein Verlaufs-Text, keine Glas-Effekte, keine Sparkle-Symbole, keine Pillen-Knöpfe). Trotzdem einfach. Kein Hell-Modus.
+- **Formensprache:** Graphit-Flächen, Haarlinien-Raster, harte Kanten (Radius ≤ 2 px), Schnittmarken-Ecken an Bildern und Panels, Messwerte als feine Instrumenten-Skalen, Metadaten in Monospace mit Tabellenziffern, Bildnummern wie auf dem Filmstreifen („024“).
+- **Farbe:** Graphit-Grautöne + warmes Papierweiß für Text; **eine** Signalfarbe (Dunkelkammer-Amber) nur für Fokus, aktive Elemente und die Hauptaktion. Behalten/Aussortieren/Prüfen zusätzlich über Form unterscheidbar (nicht nur Farbe).
+- **Entscheidungs-Markierungen wie auf einem Kontaktbogen:** behalten = Fettstift-Kreis, aussortiert = Fettstift-Strich/Kreuz, „Bitte prüfen“ = Ausrufezeichen am Rand. Dieses Bild kennt jeder Fotograf und macht den Zustand ohne Legende verständlich.
 - Dezente Animationen (Bündel aufklappen, Statuswechsel, Fortschritt). **Nur `transform` und `opacity` animieren**, damit das Scrollen mit 2.000 Bildern flüssig bleibt; `prefers-reduced-motion` respektieren.
 - **Alles auf einen Blick:** Gruppen erscheinen als kompakte **Bündel** – gestapelte Mini-Vorschauen (wie ein kleiner Fotostapel), die sich per Klick aufklappen.
 - Ein Mockup der Bündel-Ansicht wird in M2 erstellt und vor M5 abgestimmt (A5).
@@ -66,9 +69,9 @@ HTML-Oberfläche in einem **eigenen Programmfenster** (pywebview / Edge WebView2
 **Bündel (aufgeklappt):** Kopf mit Nummer, Anzahl, behalten, Zeitspanne, Symbole; Serien innerhalb der Gruppe durch kleinen Abstand sichtbar. Bei großen Gruppen erste Zeile + „weitere 14 anzeigen“.
 
 **Kachel (≈ 160 px, mit Strg + Mausrad / Knopf in 3 Größen: 120/160/240 px):**
-- Behalten: normal, grüner Haken oben rechts.
-- Aussortiert: abgedunkelt (Deckkraft 45 %), rotes ✗, Begründung als Tooltip und unter der Kachel in 1 Zeile (abgeschnitten).
-- „Bitte prüfen“: gelber Rahmen + ⚠.
+- Behalten: normal, Fettstift-Kreis-Markierung (D16).
+- Aussortiert: abgedunkelt (Deckkraft 45 %), Fettstift-Strich/Kreuz, Begründung als Tooltip und unter der Kachel in 1 Zeile (abgeschnitten).
+- „Bitte prüfen“: Amber-Randmarke + Ausrufezeichen.
 - Manuell geändert: kleines Hand-Symbol.
 - Geschützt (Sterne): ★.
 - Kleine Symbole unten links: 👤 + Anzahl Gesichter, Augen geschlossen 😑, Schärfe-Balken (3 Stufen).

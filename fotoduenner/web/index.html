@@ -7,18 +7,42 @@
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-  <main class="start">
-    <div class="glow" aria-hidden="true"></div>
-    <h1>Foto<span>Dünner</span></h1>
-    <p class="lead">Analysiert Ihr Urlaubsalbum und schlägt vor, was weg kann.<br>
-      Es wird nichts gelöscht – aussortierte Bilder lassen sich jederzeit zurückholen.</p>
-    <button class="primary" type="button" disabled title="Kommt in Meilenstein M2">Ordner wählen …</button>
-    <p class="hint">Tipp: Testen Sie FotoDünner zuerst mit einer Kopie eines Urlaubsordners.</p>
-    <footer id="version">Version –</footer>
+  <header class="bar">
+    <span class="wordmark">FOTODÜNNER</span>
+    <span class="readout"><span id="version">v–</span><span class="sep">│</span>OFFLINE</span>
+  </header>
+
+  <main class="stage">
+    <section class="panel" aria-labelledby="title">
+      <span class="crop tl" aria-hidden="true"></span><span class="crop tr" aria-hidden="true"></span>
+      <span class="crop bl" aria-hidden="true"></span><span class="crop br" aria-hidden="true"></span>
+
+      <p class="eyebrow">Neues Album</p>
+      <h1 id="title">Urlaubsalbum ausdünnen</h1>
+      <p class="lead">FotoDünner findet Doppelte, Serienbilder und missglückte Aufnahmen und schlägt vor,
+        was weg kann. Sie prüfen jeden Vorschlag selbst. Gelöscht wird nichts – aussortierte Bilder
+        landen im Unterordner <code>_Aussortiert</code> und lassen sich jederzeit zurückholen.</p>
+
+      <button class="primary" type="button" disabled title="Kommt in Meilenstein M2">Ordner wählen …</button>
+
+      <ol class="steps">
+        <li><span class="num">01</span>Ordner wählen</li>
+        <li><span class="num">02</span>Analysieren</li>
+        <li><span class="num">03</span>Prüfen &amp; übernehmen</li>
+      </ol>
+    </section>
+
+    <p class="hint"><span class="mark" aria-hidden="true">!</span>Tipp: Testen Sie FotoDünner zuerst mit einer Kopie eines Urlaubsordners.</p>
   </main>
+
+  <footer class="bar status">
+    <span>127.0.0.1</span>
+    <span>Ihre Fotos verlassen diesen Rechner nicht</span>
+  </footer>
+
   <script type="module">
     const res = await fetch("/api/version");
-    if (res.ok) document.getElementById("version").textContent = `Version ${(await res.json()).version}`;
+    if (res.ok) document.getElementById("version").textContent = `v${(await res.json()).version}`;
   </script>
 </body>
 </html>
