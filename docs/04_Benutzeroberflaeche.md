@@ -92,7 +92,7 @@ HTML-Oberfläche in einem **eigenen Programmfenster** (pywebview / Edge WebView2
 
 **Großansicht (Overlay):**
 - 1600-px-Vorschau, Pfeile links/rechts innerhalb der Gruppe, darunter Filmstreifen der Gruppe.
-- Taste Z oder Klick: **100 %-Zoom** an der Klickposition (lädt Original über `GET /api/photo/{id}/full`, Dekodierung des Originals 0,3–1 s – Ladeindikator).
+- Taste Z oder Klick: **100 %-Zoom** an der Klickposition (lädt Original über `GET /api/album/{id}/photo/{pid}/full`, Dekodierung des Originals 0,3–1 s – Ladeindikator).
 - Seitenleiste: Begründung, Werte verständlich formuliert („Schärfe: sehr gut“, „Augen: offen“, „Belichtung: in Ordnung“), Aufnahmezeit, Dateiname, Größe; Knöpfe Behalten/Aussortieren.
 - Debug-Ansicht (Taste D, für die Entwicklung): alle Rohwerte, Zero-Shot-Scores und Gesichtsboxen einblenden.
 - Später (T14): Taste F zoomt auf das größte Gesicht.
@@ -113,7 +113,7 @@ Dialog „Übernehmen“:
 
 ## 4. Leistung im Frontend (wichtig bei 2.000 Kacheln)
 
-- Vorschauen als JPEG (~15–30 KB) über `GET /api/photo/{id}/thumb?size=s`, HTTP-Cache-Header (`immutable`, Versionsparameter).
+- Vorschauen als JPEG (~15–30 KB) über `GET /api/album/{id}/photo/{pid}/thumb?size=s`, HTTP-Cache-Header (`immutable`, Versionsparameter).
 - `loading="lazy"` und `decoding="async"` auf `<img>`; Bündel/Gruppen-Blöcke außerhalb des sichtbaren Bereichs mit `content-visibility: auto` → flüssiges Scrollen ohne eigenes Virtual Scrolling. Falls trotzdem ruckelig (> 3.000 Kacheln im Reiter „Alle“): einfache Fenster-Virtualisierung pro Gruppe.
 - Zugeklappte Bündel laden nur die 3 obersten Vorschauen.
 - Statusänderung = lokales Update der Kachel + `POST /api/album/{id}/decision` (debounced); Server berechnet neu und schickt nur geänderte IDs zurück (`{changed: [{id, keep, reason}], stats}`).
@@ -132,9 +132,11 @@ Dialog „Übernehmen“:
 | POST | `/api/album/{id}/settings` | Modus, Zielquote, Gruppierungsstärke, Optionen → Diff |
 | POST | `/api/album/{id}/decision` | `{photo_id, manual: keep|reject|null}` → Diff |
 | POST | `/api/album/{id}/rethin` | „Erneut ausdünnen“ eines übernommenen Albums |
-| GET | `/api/photo/{id}/thumb?size=s|l` | Vorschau |
-| GET | `/api/photo/{id}/full` | Original (für 100 %-Zoom) |
-| GET | `/api/photo/{id}/info` | Details für Seitenleiste |
+| GET | `/api/album/{id}/photo/{pid}/thumb?size=s|l&v=…` | Vorschau (Foto-IDs gelten je Album, A18) |
+| GET | `/api/album/{id}/photo/{pid}/full` | Original (für 100 %-Zoom, M5) |
+| GET | `/api/album/{id}/photo/{pid}/info` | Details für Seitenleiste |
+| GET | `/api/recent` | „Zuletzt geöffnet“ |
+| POST | `/api/instance/focus` | zweiter Programmstart holt das Fenster nach vorn (A3) |
 | POST | `/api/album/{id}/apply/preview` | Zusammenfassung vor dem Verschieben |
 | POST | `/api/album/{id}/apply` | Verschieben (Fortschritt über SSE) |
 | POST | `/api/album/{id}/undo` | letzten Batch rückgängig |

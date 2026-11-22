@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FotoDünner – Entwurf Bündel-Ansicht</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/mockup/bundles.css">
+</head>
+<body>
+  <!-- DESIGN MOCKUP (A5): fake groups and decisions on real previews. Not part of the app flow. -->
+  <header class="bar">
+    <span class="brand"><span class="wordmark">FOTODÜNNER</span><span id="crumb" class="crumb"></span></span>
+    <span class="tally-head"><span id="count-before">–</span><span class="arrow">→</span><span id="count-after" class="after">–</span><span id="count-delta" class="delta"></span></span>
+    <span class="readout">ENTWURF<span class="sep">│</span>OFFLINE</span>
+  </header>
+  <main id="app" class="review mock"></main>
+  <footer class="bar status applybar">
+    <span id="reject-sum" class="reject-sum"></span>
+    <span class="apply-actions">
+      <button class="ghost" type="button" disabled>Rückgängig</button>
+      <button class="primary" type="button">Übernehmen …</button>
+    </span>
+  </footer>
+  <script type="module" src="/static/mockup/bundles.js"></script>
+</body>
+</html>

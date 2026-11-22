@@ -97,11 +97,13 @@ FotoDuenner/
 │   ├── store/
 │   │   ├── db.py               # Schema, Migrationen
 │   │   └── cache.py            # Vorschau-Dateien
+│   ├── instance.py             # Einzelinstanz (Lock-Datei + Fokus-Anfrage, A3)
+│   ├── winplatform.py          # WebView2-Prüfung, Laufwerkstyp (USB), Meldungsfenster
 │   ├── api/
-│   │   ├── server.py           # FastAPI-App, statische Dateien, Token
-│   │   ├── routes_*.py
-│   │   └── events.py           # SSE-Fortschritt
-│   └── web/                    # index.html, app.js, styles.css, icons
+│   │   ├── server.py           # FastAPI-App, Routen, SSE-Fortschritt
+│   │   ├── security.py         # Token → Cookie, Header- und Host-Prüfung (T12)
+│   │   └── state.py            # geöffnete Alben, laufende Analyse
+│   └── web/                    # index.html, styles.css, js/ (ES-Module), fonts/ (OFL), mockup/
 └── tests/
     ├── fixtures/               # Generator + kleine CC0-Testbilder (siehe 05)
     └── test_*.py

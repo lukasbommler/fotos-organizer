@@ -33,6 +33,7 @@ class Progress:
     eta_seconds: float | None = None
     current_file: str | None = None
     errors: int = 0
+    photo_id: int | None = None  # the photo just finished (live grid)
 
 
 @dataclass(slots=True)
@@ -81,6 +82,7 @@ def analyze_album(
     workers: int | None = None,
     data_root: Path | None = None,
     keep_results: bool = False,
+    skip_offline: bool = False,
 ) -> RunSummary:
     """Scan ``root`` and analyse every photo not cached yet. Safe to cancel and to resume.
 
@@ -96,7 +98,7 @@ def analyze_album(
     summary = RunSummary(scan=scan, sync=sync)
     jobs = [
         Job(pid, str(store.abs_path(rel)), rel, str(store.thumbs_dir))
-        for pid, rel in store.pending()
+        for pid, rel in store.pending(include_offline=not skip_offline)
     ]
     log.info(
         "album %s: %d photos, %d to analyse (%d reused)", root, sync.total, len(jobs), sync.reused
@@ -143,6 +145,7 @@ def _run_jobs(
                 eta.remaining(total - summary.processed),
                 result.rel_path,
                 summary.errors,
+                result.photo_id,
             )
         )
 

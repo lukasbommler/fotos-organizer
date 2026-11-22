@@ -4,45 +4,24 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FotoDünner</title>
+  <link rel="preload" href="/static/fonts/IBMPlexSans-Regular-Latin1.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/static/fonts/IBMPlexMono-Regular-Latin1.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
   <header class="bar">
-    <span class="wordmark">FOTODÜNNER</span>
+    <span class="brand"><span class="wordmark">FOTODÜNNER</span><span id="crumb" class="crumb" hidden></span></span>
     <span class="readout"><span id="version">v–</span><span class="sep">│</span>OFFLINE</span>
   </header>
 
-  <main class="stage">
-    <section class="panel" aria-labelledby="title">
-      <span class="crop tl" aria-hidden="true"></span><span class="crop tr" aria-hidden="true"></span>
-      <span class="crop bl" aria-hidden="true"></span><span class="crop br" aria-hidden="true"></span>
-
-      <p class="eyebrow">Neues Album</p>
-      <h1 id="title">Urlaubsalbum ausdünnen</h1>
-      <p class="lead">FotoDünner findet Doppelte, Serienbilder und missglückte Aufnahmen und schlägt vor,
-        was weg kann. Sie prüfen jeden Vorschlag selbst. Gelöscht wird nichts – aussortierte Bilder
-        landen im Unterordner <code>_Aussortiert</code> und lassen sich jederzeit zurückholen.</p>
-
-      <button class="primary" type="button" disabled title="Kommt in Meilenstein M2">Ordner wählen …</button>
-
-      <ol class="steps">
-        <li><span class="num">01</span>Ordner wählen</li>
-        <li><span class="num">02</span>Analysieren</li>
-        <li><span class="num">03</span>Prüfen &amp; übernehmen</li>
-      </ol>
-    </section>
-
-    <p class="hint"><span class="mark" aria-hidden="true">!</span>Tipp: Testen Sie FotoDünner zuerst mit einer Kopie eines Urlaubsordners.</p>
-  </main>
+  <main id="app" class="stage"></main>
 
   <footer class="bar status">
     <span>127.0.0.1</span>
+    <span id="status-text" class="status-text" aria-live="polite"></span>
     <span>Ihre Fotos verlassen diesen Rechner nicht</span>
   </footer>
 
-  <script type="module">
-    const res = await fetch("/api/version");
-    if (res.ok) document.getElementById("version").textContent = `v${(await res.json()).version}`;
-  </script>
+  <script type="module" src="/static/js/app.js"></script>
 </body>
 </html>

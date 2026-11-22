@@ -9,8 +9,8 @@ from fotoduenner.paths import long_path
 
 
 def test_index_and_version() -> None:
-    client = TestClient(create_app())
-    index = client.get("/")
+    client = TestClient(create_app(token="t", allowed_hosts={"testserver"}))
+    index = client.get("/?t=t")
     assert index.status_code == 200
     assert "FotoDünner" in index.text
     assert client.get("/static/styles.css").status_code == 200

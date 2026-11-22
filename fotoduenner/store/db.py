@@ -392,12 +392,14 @@ class AlbumStore:
 
     # --- analysis bookkeeping ----------------------------------------------------------
 
-    def pending(self) -> list[tuple[int, str]]:
+    def pending(self, include_offline: bool = True) -> list[tuple[int, str]]:
+        """Photos still to analyse; cloud placeholders can be left out (02 §7.3)."""
+        offline = "" if include_offline else " AND offline=0"
         with contextlib.closing(self.connect()) as conn:
             return [
                 (r["id"], r["rel_path"])
                 for r in conn.execute(
-                    "SELECT id, rel_path FROM photos WHERE present=1 AND status='pending'"
+                    f"SELECT id, rel_path FROM photos WHERE present=1 AND status='pending'{offline}"
                     " ORDER BY rel_path COLLATE NOCASE"
                 )
             ]

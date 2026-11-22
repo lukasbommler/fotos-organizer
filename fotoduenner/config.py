@@ -104,6 +104,11 @@ class Config:
     analysis_workers: int | None = None  # None = physical cores - 1 (at least 1)
     submit_ahead_per_worker: int = 2  # bounded queue: fast cancel, bounded memory
     db_batch_size: int = 50
+    # ASSUMPTION: CPU ms per photo for the pre-check estimate; M1 benchmark ~240 ms on one core,
+    # to be raised once M3 adds faces and CLIP (docs/BENCHMARKS.md).
+    estimate_ms_per_photo: float = 240.0
+    estimate_startup_s: float = 3.0
+    few_photos_warning: int = 20
     eta_window: int = 50
 
 
