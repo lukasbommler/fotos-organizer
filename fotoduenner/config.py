@@ -88,14 +88,32 @@ class Config:
     group_split_factor: float = 0.7
     group_split_max_depth: int = 3
 
+    # ASSUMPTION: photos without EXIF time get the full time penalty and the day penalty in the
+    # motif distance (03 §5.2 leaves them open) – they only group when they look nearly equal.
+
+    # Photo value (03 §6): weights of sharpness, exposure, aesthetic, faces
+    value_weights_people: tuple[float, float, float, float] = (0.35, 0.10, 0.15, 0.40)
+    value_weights_other: tuple[float, float, float] = (0.50, 0.20, 0.30)
+    people_face_sharp_weight: float = 0.6  # q_sharp of a people photo: faces vs. whole photo
+    eyes_unknown: float = 0.7  # q_face when eyes could not be judged (small face, person_back)
+    eyes_all_open_bonus: float = 0.1
+
     # Ranking within groups (03 §7)
     mmr_lambda: float = 0.65
     mmr_gamma: float = 1.5
     facecount_diversity: float = 0.8
     people_priority_boost: float = 0.5
+    aesthetic_priority: tuple[float, float] = (0.85, 0.3)  # priority · (a + b · q_aes)
 
     # Mode "clean" (03 §8.1, D12)
     clean_distinct_cos: float = 0.93
+
+    # Mode "quota" (03 §8.2)
+    people_second_min_group: int = 3  # rank 1 is kept too if it is a people photo
+    low_single_value: float = 0.25  # option "Einzelbilder mit geringem Wert aussortieren"
+    low_single_aesthetic_rank: float = 0.2
+    # Dominant factor in a series reason ("..., aber unschärfer") must differ at least this much.
+    reason_min_diff: float = 0.02
 
     # Quality (03 §4, T5). blur_abs stays None until calibrated in M7.
     blur_abs: float | None = None

@@ -44,8 +44,8 @@ extend-exclude = ["docs"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "PTH", "RUF"]
-# German UI texts and docstrings use the en dash.
-allowed-confusables = ["–"]
+# German UI texts and docstrings use the en dash and the multiplication sign ("3× behalten").
+allowed-confusables = ["–", "×"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

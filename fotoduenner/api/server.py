@@ -32,6 +32,18 @@ class OpenRequest(BaseModel):
     recursive: bool = True
 
 
+class SettingsRequest(BaseModel):
+    mode: Literal["clean", "quota"] | None = None
+    keep_target: float | None = None
+    level: int | None = None
+    low_singles: bool | None = None
+
+
+class DecisionRequest(BaseModel):
+    photo_id: int
+    manual: Literal["keep", "reject"] | None = None
+
+
 def create_app(
     state: AppState | None = None,
     token: str | None = None,
@@ -105,6 +117,14 @@ def create_app(
     @app.get("/api/album/{album_id}/view")
     def view(album_id: str) -> dict[str, Any]:
         return state.view(album_id)
+
+    @app.post("/api/album/{album_id}/settings")
+    def settings(album_id: str, body: SettingsRequest) -> dict[str, Any]:
+        return state.update_settings(album_id, body.model_dump(exclude_none=True))
+
+    @app.post("/api/album/{album_id}/decision")
+    def decision(album_id: str, body: DecisionRequest) -> dict[str, Any]:
+        return state.set_decision(album_id, body.photo_id, body.manual)
 
     @app.get("/api/album/{album_id}/photo/{photo_id}/thumb")
     def thumb(album_id: str, photo_id: int, size: Literal["s", "l"] = "s") -> FileResponse:

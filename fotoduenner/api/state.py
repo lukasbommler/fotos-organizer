@@ -11,6 +11,7 @@ from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any, Literal
 
+from fotoduenner.api.review import Review
 from fotoduenner.config import DEFAULT, Config
 from fotoduenner.paths import albums_dir
 from fotoduenner.pipeline.quality import Quality, exposure_score
@@ -53,6 +54,11 @@ class AlbumSession:
     cancel: threading.Event = field(default_factory=threading.Event)
     thread: threading.Thread | None = None
     lock: threading.Lock = field(default_factory=threading.Lock)
+    review: Review | None = None
+
+    def __post_init__(self) -> None:
+        if self.review is None:
+            self.review = Review(self.store, self.cfg)
 
     @property
     def album_id(self) -> str:
@@ -173,12 +179,16 @@ class AppState:
                 data_root=self.data_root,
                 skip_offline=skip_offline,
             )
+            if session.review is not None:
+                session.review.invalidate()  # new features: groups and proposals are rebuilt
             with session.lock:
                 session.summary = summary
                 session.state = "cancelled" if summary.cancelled else "done"
                 session.version += 1
         except Exception as exc:  # the UI must learn about it instead of waiting forever
             log.exception("analysis failed")
+            if session.review is not None:
+                session.review.invalidate()  # part of the photos may have new features
             with session.lock:
                 session.state = "failed"
                 session.error = f"Die Analyse ist fehlgeschlagen: {exc}"
@@ -224,13 +234,35 @@ class AppState:
             }
             for index, r in enumerate(rows)
         ]
+        review = None
+        if session.state != "running" and any(r["status"] == "done" for r in rows):
+            review = self._review(session).full()
         return {
             "album_id": album_id,
             "name": session.store.root.name,
             "path": str(session.store.root),
             "state": session.state,
             "photos": photos,
+            "review": review,
         }
+
+    # --- review: proposals, settings, manual decisions (04 §5) ---------------------------
+
+    @staticmethod
+    def _review(session: AlbumSession) -> Review:
+        if session.state == "running":
+            raise ApiError(409, "Die Analyse läuft noch.")
+        assert session.review is not None
+        return session.review
+
+    def update_settings(self, album_id: str, changes: dict[str, Any]) -> dict[str, Any]:
+        return self._review(self.session(album_id)).update_settings(changes)
+
+    def set_decision(self, album_id: str, photo_id: int, manual: str | None) -> dict[str, Any]:
+        try:
+            return self._review(self.session(album_id)).set_manual(photo_id, manual)
+        except KeyError:
+            raise ApiError(404, "Bild nicht gefunden oder noch nicht analysiert.") from None
 
     def photo_row(self, album_id: str, photo_id: int) -> dict[str, Any]:
         session = self.session(album_id)

@@ -527,3 +527,45 @@ class AlbumStore:
                     conn.execute(
                         "UPDATE features SET faces_native=-1 WHERE photo_id=?", (res.photo_id,)
                     )
+
+    # --- selection (03 §5–§8): manual decisions and settings ---------------------------
+
+    @staticmethod
+    def selection_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+        """Analysed photos still in the album, with their features (input of the selection)."""
+        return conn.execute(
+            "SELECT p.id, p.rel_path, p.taken_at, p.taken_at_source, p.camera, p.exposure_bias,"
+            " p.file_hash, p.rating, f.phash, f.embedding, f.sharpness_peak, f.exposure_mean,"
+            " f.contrast, f.clip_low, f.clip_high, f.aesthetic, f.zeroshot, f.faces"
+            " FROM photos p JOIN features f ON f.photo_id = p.id"
+            " WHERE p.present=1 AND p.status='done'"
+            " AND f.phash IS NOT NULL AND f.embedding IS NOT NULL ORDER BY p.id"
+        ).fetchall()
+
+    @staticmethod
+    def manual_decisions(conn: sqlite3.Connection) -> dict[int, str]:
+        return {
+            r["photo_id"]: r["manual"]
+            for r in conn.execute("SELECT photo_id, manual FROM decisions WHERE manual IS NOT NULL")
+        }
+
+    @staticmethod
+    def set_manual(conn: sqlite3.Connection, photo_id: int, manual: str | None) -> None:
+        """'keep' / 'reject' / None (back to the automatic proposal)."""
+        with conn:
+            conn.execute(
+                "INSERT INTO decisions(photo_id, manual) VALUES(?, ?)"
+                " ON CONFLICT(photo_id) DO UPDATE SET manual=excluded.manual",
+                (photo_id, manual),
+            )
+
+    @staticmethod
+    def get_settings(conn: sqlite3.Connection) -> dict[str, str]:
+        return {r["key"]: r["value"] for r in conn.execute("SELECT key, value FROM settings")}
+
+    @staticmethod
+    def put_settings(conn: sqlite3.Connection, values: dict[str, str]) -> None:
+        with conn:
+            conn.executemany(
+                "INSERT OR REPLACE INTO settings(key, value) VALUES(?, ?)", values.items()
+            )

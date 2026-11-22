@@ -150,3 +150,51 @@ def test_events_stream_reports_progress(client: TestClient, tmp_path: Path) -> N
 
 def test_photo_of_unopened_album(client: TestClient) -> None:
     assert client.get("/api/album/deadbeef/photo/1/thumb").status_code == 404
+
+
+def test_review_proposals_decisions_settings(client: TestClient, tmp_path: Path) -> None:
+    album = tmp_path / "Album"
+    make_jpeg(album / "a.jpg", seed=1, taken="2025:08:01 11:00:00")
+    make_jpeg(album / "b.jpg", seed=2, taken="2025:08:01 12:00:00")
+    (album / "Kopie").mkdir()
+    (album / "Kopie" / "a.jpg").write_bytes((album / "a.jpg").read_bytes())
+    album_id = client.post("/api/album/open", json={"path": str(album)}, headers=POST).json()[
+        "album_id"
+    ]
+    client.post(f"/api/album/{album_id}/analyze", headers=POST)
+    view = _wait_done(client, album_id)
+    review = view["review"]
+    ids = {p["rel_path"]: p["id"] for p in view["photos"]}
+    copy_id, orig_id = ids["Kopie/a.jpg"], ids["a.jpg"]
+    states = {d["id"]: d for d in review["decisions"]}
+    assert states[copy_id]["keep"] is False and states[copy_id]["ref"] == orig_id
+    assert states[copy_id]["reason"] == "Exakte Kopie von a.jpg."
+    assert states[orig_id]["keep"] and states[ids["b.jpg"]]["keep"]
+    assert review["duplicates"] == [{"id": copy_id, "of": orig_id}]
+    assert review["stats"]["mode"] == "clean" and review["stats"]["reject_duplicate"] == 1
+    grouped = set(review["singles"]) | {i for g in review["groups"] for i in g["ids"]}
+    assert grouped == {orig_id, ids["b.jpg"]}  # exact copies are in no group
+
+    url = f"/api/album/{album_id}/decision"
+    diff = client.post(url, json={"photo_id": copy_id, "manual": "keep"}, headers=POST).json()
+    assert [c["id"] for c in diff["changed"]] == [copy_id]  # a click changes only this photo
+    assert diff["changed"][0]["keep"] and diff["changed"][0]["manual"] == "keep"
+    assert diff["stats"]["keep"] == 3
+    back = client.post(url, json={"photo_id": copy_id, "manual": None}, headers=POST).json()
+    assert back["changed"][0]["keep"] is False and back["changed"][0]["manual"] is None
+    assert (
+        client.post(url, json={"photo_id": 999, "manual": "keep"}, headers=POST).status_code == 404
+    )
+
+    settings = f"/api/album/{album_id}/settings"
+    res = client.post(settings, json={"mode": "quota", "keep_target": 0.95}, headers=POST).json()
+    assert res["stats"]["mode"] == "quota" and res["stats"]["keep_target"] == 0.9  # clamped
+    assert "groups" not in res
+    res = client.post(settings, json={"level": 4}, headers=POST).json()
+    assert res["stats"]["level"] == 4 and "groups" in res
+    # stored per album (A4): a new session sees the same settings and the manual decision
+    client.post("/api/album/open", json={"path": str(album)}, headers=POST)
+    client.post(url, json={"photo_id": orig_id, "manual": "reject"}, headers=POST)
+    again = client.get(f"/api/album/{album_id}/view").json()["review"]
+    assert again["stats"]["mode"] == "quota" and again["stats"]["level"] == 4
+    assert {d["id"]: d for d in again["decisions"]}[orig_id]["reason"] == "Von Ihnen aussortiert."

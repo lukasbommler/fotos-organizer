@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 from PIL import Image
 
 from fotoduenner.config import Config
@@ -45,3 +46,13 @@ def write_thumbs(
     save_jpeg(large, large_path, cfg.thumb_jpeg_quality, icc_profile)
     save_jpeg(fit(large, cfg.thumb_small), small_path, cfg.thumb_jpeg_quality, icc_profile)
     return large
+
+
+def load_gray(path: Path, long_edge: int) -> np.ndarray | None:
+    """Small greyscale version of a preview (panorama shifts, 03 §5.0); None if unreadable."""
+    try:
+        with Image.open(path) as img:
+            gray = fit(img.convert("L"), long_edge)
+            return np.asarray(gray, dtype=np.float32)
+    except OSError:
+        return None

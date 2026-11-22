@@ -31,7 +31,7 @@ Jeder Meilenstein endet mit lauffähigem Stand, grünen Tests und erfüllten Abn
 ### M3 – Merkmale
 - `quality.py`, `hashing.py`, `faces.py` (YuNet + Augen offen nach Spike-Entscheidung, zweiter Durchgang T6), `embed.py` (CLIP ONNX), `aesthetic.py`, `zeroshot.py` (+ `scripts/make_text_embeddings.py`).
 - Debug-Ansicht in der Großansicht: alle Rohwerte, Zero-Shot-Scores + Gesichtsboxen einblendbar (Taste D).
-- **CLIP vs. DINOv2-small für die Gruppierung** vergleichen (T8): an einem echten Album 30 Motivgruppen je Variante visuell prüfen; Ergebnis in DECISIONS.md.
+- ~~**CLIP vs. DINOv2-small für die Gruppierung** vergleichen (T8)~~ → verschoben in M7, entschieden an den Korrekturen des Nutzers (D19).
 - **Pipeline-Variante (T11):** einfache Variante (alles pro Worker, ONNX 1 Thread) messen; getrennte CLIP-Stufe nur, wenn messbar schneller.
 - **Abnahme:**
   - Gesamtanalyse 2.000 Bilder ≤ 10 min (Ziel 6) auf 4-Kern-Laptop ohne GPU (inkl. zweitem Durchgang).
@@ -73,6 +73,7 @@ Jeder Meilenstein endet mit lauffähigem Stand, grünen Tests und erfüllten Abn
 
 ### M7 – Kalibrierung an echten Alben
 - In-App-Modus **„Bewertung erfassen“** (D10): alle Bilder zunächst behalten, Nutzer klickt aus, was er selbst aussortieren würde – für 300–500 zusammenhängende Bilder eines Albums. Zusätzlich visuelle Prüfung von ~30 Gruppen („gleiches Motiv?“ ja/nein). **Nicht** über Sterne im Explorer (würde Originale ändern und kollidiert mit dem Sterne-Schutz).
+- Gruppierungs-Embedding (D19): Wirken Gruppen „zu thematisch“, DINOv2-small statt CLIP prüfen (`scripts/compare_grouping_embeddings.py`).
 - `scripts/calibrate.py`: Rastersuche über Kernparameter (`MOTIF_THRESHOLDS`, `MMR_LAMBDA`, `CLEAN_DISTINCT_COS`, Gewichte in 03 §6, `BLUR_ABS`) gegen die Nutzerauswahl. Metriken:
   - **Verlust wichtiger Bilder:** Anteil vom Nutzer behaltener Bilder, die FotoDünner aussortiert (Ziel ≤ 10 %, Personenbilder ≤ 5 %).
   - **Übereinstimmung** gesamt (F1 auf „behalten“).

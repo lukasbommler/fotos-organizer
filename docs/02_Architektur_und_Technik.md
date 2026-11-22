@@ -64,7 +64,8 @@ FotoDuenner/
 │   ├── make_text_embeddings.py # Zero-Shot-Text-Embeddings mit CLIP-Text-Encoder (nur Entwicklung)
 │   ├── fetch_testset.py        # Auswertungs-Fotos von Wikimedia Commons (nur Entwicklung, nicht im Git)
 │   ├── eval_features.py        # M3-Abnahme: Gesichter, Augen, Zero-Shot, INT8 vs. FP32
-│   ├── compare_grouping_embeddings.py  # T8: CLIP vs. DINOv2 als Gruppierungs-Embedding
+│   ├── compare_grouping_embeddings.py  # T8: CLIP vs. DINOv2 als Gruppierungs-Embedding (D19: in M7)
+│   ├── eval_selection.py       # M4: Gruppierung + Auswahl an einem echten Ordner, Zeitmessung
 │   ├── bench_clip_variants.py  # T11: CLIP pro Worker vs. getrennte Batch-Stufe
 │   ├── benchmark.py            # misst Durchsatz je Stufe
 │   └── build_windows.ps1       # PyInstaller-Build + ZIP + THIRD_PARTY_LICENSES
@@ -97,7 +98,8 @@ FotoDuenner/
 │   │   ├── scoring.py          # Bildwert-Score
 │   │   ├── select.py           # Rangfolge je Gruppe (MMR), Qualitäts-Aussortierung
 │   │   ├── modes.py            # Modus "clean" und "quota" (globale Zielquote)
-│   │   └── reasons.py          # deutsche Begründungstexte
+│   │   ├── reasons.py          # deutsche Begründungstexte
+│   │   └── engine.py           # baut alles einmal je Album auf, Regler = nur neu entscheiden
 │   ├── apply/
 │   │   ├── mover.py            # Verschieben mit Journal
 │   │   └── undo.py
@@ -109,7 +111,8 @@ FotoDuenner/
 │   ├── api/
 │   │   ├── server.py           # FastAPI-App, Routen, SSE-Fortschritt
 │   │   ├── security.py         # Token → Cookie, Header- und Host-Prüfung (T12)
-│   │   └── state.py            # geöffnete Alben, laufende Analyse
+│   │   ├── state.py            # geöffnete Alben, laufende Analyse
+│   │   └── review.py           # Prüf-Übersicht: Vorschläge, Einstellungen, Klicks → Diff (A30)
 │   └── web/                    # index.html, styles.css, js/ (ES-Module), fonts/ (OFL), mockup/
 └── tests/
     ├── fixtures/               # Generator + kleine CC0-Testbilder (siehe 05)

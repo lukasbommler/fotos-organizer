@@ -37,3 +37,21 @@ Stufen-Zeiten = CPU-Zeit je Bild innerhalb eines Workers (Mittelwert); „faces�
 - **CLIP-Varianten gegen FP32** (154 Fotos des Testsets, `scripts/eval_features.py clip`): Xenova „quantized“ (INT8, Plan) mittlere Kosinus-Ähnlichkeit 0,924 (min. 0,73), Xenova „uint8“ 0,975, Xenova „int8“ 0,973, q4 0,970, **FP16 1,0000** (Paarabstände unverändert, INT8 verschiebt Paare nahe der Serien-Schwelle um Ø 0,047). Laufzeit 1 Thread: INT8 90 ms, FP16 109 ms, FP32 107 ms. → FP16 (A25).
 - Qualitätsstufe nach Optimierung (Graustufen vor dem Verkleinern, Kachel-Statistik über Blockmittel, `cv2.meanStdDev`): 21–25 ms unter Last (vorher 41 ms).
 
+
+### 2026-11-22 22:58 – M4 (Gruppierung + Auswahl), v0.1.0
+
+- CPU: AMD Ryzen 7 PRO 4750U with Radeon Graphics (8 Kerne / 16 Threads), RAM 34 GB, Python 3.12.16
+- (a) 2.048 synthetische Merkmalssätze ohne Bilder (`tests/test_selection.py`, 60 Tage mit Serien, Motivgruppen, Einzelbildern, 40 % Personen): 1.207 Knoten, 720 Gruppen
+- (b) `scripts/eval_selection.py` über die App-API auf `demo/Perf 2000` (2.000 Bilder, davon 1.880 exakte Kopien der 120 Demo-Bilder) und `demo/Demo-Urlaub 2025` (122 Bilder)
+
+| Vorgang | (a) 2.048 Bilder | (b) Perf 2000 | (b) Demo-Urlaub |
+|---|---|---|---|
+| Modell aufbauen (einmal je Album/Analyse) | 460 ms (vorher 1.650 ms) | – | – |
+| erste Ansicht inkl. Aufbau + JSON | – | 193 ms | 52 ms |
+| Moduswechsel | 31–39 ms | 30 ms | 23 ms |
+| Regler Zielquote | 31 ms | 27 ms | 25 ms |
+| Regler Gruppierung, neue Stufe | 187 ms | 42 ms | 29 ms |
+| Regler Gruppierung, schon berechnete Stufe | 31–39 ms | 35 ms | 24 ms |
+| manueller Klick | 31 ms | 31 ms | 16 ms |
+
+**Einordnung M4:** Abnahme „Neuberechnung 2.000 Bilder < 300 ms“ erfüllt – am teuersten ist eine noch nicht berechnete Gruppierungsstufe (187 ms). Das Modell aufzubauen lag zuerst bei 1,65 s; 1,2 s davon kosteten die Knotenabstände über Paar-Kopien der Embeddings, jetzt ein Matrixprodukt (460 ms). In (b) sind nur 120 Bilder verschieden, das Clustering ist dort kleiner; Entscheidungen, JSON und Klicks laufen über alle 2.000 Bilder.

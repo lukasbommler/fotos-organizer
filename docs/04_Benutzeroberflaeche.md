@@ -128,7 +128,7 @@ Dialog „Übernehmen“:
 | POST | `/api/album/{id}/analyze` | Analyse starten/fortsetzen |
 | POST | `/api/album/{id}/cancel` | abbrechen |
 | GET | `/api/album/{id}/events` | SSE Fortschritt |
-| GET | `/api/album/{id}/view?tab=groups&filter=…` | Gruppen, Kacheln, Status, Begründungen |
+| GET | `/api/album/{id}/view` | alle Bilder + `review`: Gruppen, Entscheidungen, Begründungen, Statistik (A30; Reiter/Filter im Frontend) |
 | POST | `/api/album/{id}/settings` | Modus, Zielquote, Gruppierungsstärke, Optionen → Diff |
 | POST | `/api/album/{id}/decision` | `{photo_id, manual: keep|reject|null}` → Diff |
 | POST | `/api/album/{id}/rethin` | „Erneut ausdünnen“ eines übernommenen Albums |

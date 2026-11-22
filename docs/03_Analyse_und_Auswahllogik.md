@@ -82,7 +82,7 @@ Auf `img_1024`, Luminanz Y (0..255):
 - Vorverarbeitung (CLIP-Standard): kürzere Seite auf 224 (bikubisch), mittig 224 × 224 zuschneiden, RGB float32 / 255, Normierung mean = (0,48145466; 0,4578275; 0,40821073), std = (0,26862954; 0,26130258; 0,27577711), Layout NCHW.
 - Embedding L2-normalisieren, als float16 speichern.
 - Kontrolle: INT8- vs. FP32-Embeddings auf 200 Bildern vergleichen (mittlere Kosinus-Ähnlichkeit ≥ 0,98 → INT8 verwenden).
-- **Gruppierungs-Embedding (T8):** Schon in **M3** CLIP gegen **DINOv2-small** (Apache-2.0) für die Gruppierung vergleichen – CLIP gruppiert eher thematisch („alle Strandbilder“), DINOv2 eher nach gleicher Szene. CLIP bleibt in jedem Fall für Ästhetik und Zero-Shot nötig; DINOv2 nur zusätzlich, wenn messbar besser und das Zeitbudget es erlaubt.
+- **Gruppierungs-Embedding (T8, D19: Entscheidung in M7 aus der echten Nutzung, bis dahin CLIP):** CLIP gegen **DINOv2-small** (Apache-2.0) für die Gruppierung vergleichen – CLIP gruppiert eher thematisch („alle Strandbilder“), DINOv2 eher nach gleicher Szene. CLIP bleibt in jedem Fall für Ästhetik und Zero-Shot nötig; DINOv2 nur zusätzlich, wenn messbar besser und das Zeitbudget es erlaubt.
 
 ### 3.7 Ästhetik (`pipeline/aesthetic.py`)
 - LAION **Aesthetic Predictor v1** für ViT-B/32 (lineares Modell 512 → 1, `sa_0_4_vit_b_32_linear.pth`, Repo `LAION-AI/aesthetic-predictor`, Lizenz prüfen). Gewichte einmalig nach NumPy (`.npz`) konvertieren → keine PyTorch-Laufzeitabhängigkeit. Eingabe: L2-normalisiertes CLIP-Embedding. Ausgabe ≈ 1–10.
@@ -253,9 +253,14 @@ PANO_SHIFT_MIN = 0.15; PANO_SHIFT_MAX = 0.70; PANO_MIN_PEAK = 0.1
 MOTIF_ALPHA = 0.06; MOTIF_TMAX = 3*3600; MOTIF_DAY_PENALTY = 0.05
 MOTIF_THRESHOLDS = (0.08, 0.11, 0.14, 0.18, 0.22); MOTIF_DEFAULT_LEVEL = 2  # Index
 GROUP_MAX_SIZE = 30; GROUP_MAX_SPAN = 24*3600
+GROUP_SPLIT_FACTOR = 0.7; GROUP_SPLIT_MAX_DEPTH = 3
+VALUE_WEIGHTS_PEOPLE = (0.35, 0.10, 0.15, 0.40); VALUE_WEIGHTS_OTHER = (0.50, 0.20, 0.30)
+PEOPLE_FACE_SHARP_WEIGHT = 0.6; EYES_UNKNOWN = 0.7; EYES_ALL_OPEN_BONUS = 0.1
 MMR_LAMBDA = 0.65; MMR_GAMMA = 1.5; FACECOUNT_DIVERSITY = 0.8
-PEOPLE_PRIORITY_BOOST = 0.5
+PEOPLE_PRIORITY_BOOST = 0.5; AESTHETIC_PRIORITY = (0.85, 0.3)
 CLEAN_DISTINCT_COS = 0.93
+PEOPLE_SECOND_MIN_GROUP = 3; LOW_SINGLE_VALUE = 0.25; LOW_SINGLE_AESTHETIC_RANK = 0.2
+REASON_MIN_DIFF = 0.02  # Begründung nennt einen Unterschied erst ab dieser gewichteten Differenz
 BLUR_ABS = None   # in M7 kalibrieren; bis dahin nur "Bitte prüfen" (T5)
 BLUR_REL = 0.10; BLUR_REVIEW_REL = 0.05; MISFIRE_SHARP_REL = 0.03
 OVEREXP_CLIP_HIGH = 0.35; UNDEREXP_MEAN = 20; UNDEREXP_CONTRAST = 15
