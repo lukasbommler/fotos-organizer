@@ -39,7 +39,7 @@
 | ML-Inferenz | `onnxruntime` (CPU) | Klein (~50 MB), schnell auf CPU, kein PyTorch nötig |
 | Augen offen | MediaPipe Face Mesh V2 + Blendshape V2, **nach ONNX konvertiert**, über `onnxruntime` (D17) | Kein `mediapipe`-Paket → kein OpenCV-Konflikt, kleineres Paket |
 | Perzeptueller Hash | eigene pHash-Implementierung mit NumPy | Schnelle Erkennung fast identischer Bilder |
-| Datei-Hash | `hashlib` (BLAKE2b) über den Dateiinhalt | Exakte Duplikate (T7) |
+| Datei-Hash | `hashlib` (SHA-256) über den Dateiinhalt | Exakte Duplikate (T7); SHA-256 statt BLAKE2b, weil hardwarebeschleunigt (A13) |
 | Clustering | NumPy/SciPy (`scipy.cluster.hierarchy`) | 2.000×2.000 Distanzmatrix ist trivial; scikit-learn nicht nötig |
 | Web-Backend | FastAPI + uvicorn | Einfach, async, SSE für Fortschritt |
 | Frontend | Vanilla JS (ES Modules) + CSS, kein Build-Schritt | Keine Node-Toolchain nötig, leicht paketierbar |
@@ -81,6 +81,7 @@ FotoDuenner/
 │   │   ├── aesthetic.py        # Ästhetik-Kopf auf CLIP-Embedding
 │   │   ├── zeroshot.py         # Zero-Shot-Labels aus Embedding + vorab berechneten Text-Embeddings
 │   │   ├── hashing.py          # pHash + Datei-Hash
+│   │   ├── analyze.py          # Analyse eines Bildes im Worker (Job → Result)
 │   │   └── runner.py           # Orchestrierung, Prozess-Pool, Fortschritt, Abbruch
 │   ├── grouping/
 │   │   ├── sequences.py        # Belichtungsreihen, Panoramen
@@ -127,17 +128,23 @@ Vorschauen als JPEG statt WebP (deutlich schnellere Kodierung, T10).
 ```sql
 photos(
   id INTEGER PRIMARY KEY,
-  rel_path TEXT UNIQUE,          -- JPEG relativ zum Album
-  companions TEXT,               -- JSON-Liste weiterer Dateien (.xmp)
-  size INTEGER, mtime REAL,      -- Cache-Schlüssel
-  fingerprint TEXT,              -- Name + Größe + mtime + EXIF-Zeit (T13)
-  file_hash BLOB,                -- BLAKE2b des Inhalts (exakte Duplikate)
-  taken_at REAL,                 -- Unix-Zeit (EXIF DateTimeOriginal + SubSec, Fallback mtime)
+  rel_path TEXT UNIQUE,          -- JPEG relativ zum Album, Trenner '/'
+  companions TEXT,               -- JSON-Liste mitzuverschiebender Dateien (.xmp, A12)
+  size INTEGER, mtime_ns INTEGER,-- Cache-Schlüssel (+ algo_version)
+  fp_key TEXT,                   -- Fingerabdruck T13, Suchteil: Name + Größe + mtime (A15)
+  exif_dt TEXT,                  -- Fingerabdruck T13, Bestätigung: rohe EXIF-Zeit
+  file_hash BLOB,                -- SHA-256 des Inhalts (exakte Duplikate, A13)
+  taken_at REAL,                 -- Sekunden (EXIF DateTimeOriginal + SubSec, Fallback mtime)
   taken_at_source TEXT,          -- 'exif' | 'mtime'
   camera TEXT,                   -- Make+Model (Zeitversatz zwischen Geräten, Sequenzen)
   exposure_bias REAL,            -- EXIF ExposureBiasValue (Belichtungsreihen)
-  width INTEGER, height INTEGER, orientation INTEGER,
-  rating INTEGER,                -- EXIF/XMP-Rating, NULL wenn keins
+  width INTEGER, height INTEGER, -- wie angezeigt (Orientierung angewendet)
+  orientation INTEGER,
+  rating_embedded INTEGER,       -- EXIF/eingebettetes XMP
+  rating_sidecar INTEGER,        -- .xmp-Sidecar, bei jedem Scan neu gelesen
+  rating INTEGER,                -- kombiniert (A12), NULL wenn keins
+  offline INTEGER,               -- Cloud-Platzhalter (02 §7.3)
+  present INTEGER,               -- 0 = nicht mehr im Album, Zeile bleibt als Cache (A14)
   status TEXT,                   -- 'pending' | 'done' | 'error'
   error TEXT,
   algo_version INTEGER
@@ -203,7 +210,7 @@ Details:
 | Schritt | pro Bild (1 Kern) | Bemerkung |
 |---|---|---|
 | Datei lesen + Hash | 25–45 ms | USB-HDD: 100–150 ms (dann I/O-gebunden) |
-| JPEG-Dekodierung mit `draft` (1/4 im DCT) | 40–70 ms | ohne `draft` 250–400 ms – **entscheidender Trick** |
+| JPEG-Dekodierung mit `draft` (1/4 im DCT) | ~~40–70 ms~~ gemessen 120–190 ms | bei 13-MB-Dateien dominiert die Entropie-Dekodierung; `draft` spart nur ~25 % (docs/BENCHMARKS.md) |
 | Vorschauen (2 Größen, JPEG q=85) | 8–15 ms | |
 | Schärfe + Belichtung + pHash | 10–15 ms | |
 | YuNet (640 px) | 10–20 ms | |

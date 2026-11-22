@@ -1,0 +1,451 @@
+"""Per-album SQLite store (02 §4): schema, scan sync, results, fingerprint reuse (T13)."""
+
+from __future__ import annotations
+
+import contextlib
+import hashlib
+import json
+import logging
+import os
+import shutil
+import sqlite3
+import time
+from collections.abc import Iterable, Iterator, Sequence
+from dataclasses import dataclass
+from pathlib import Path, PurePosixPath
+
+from fotoduenner.config import Config
+from fotoduenner.paths import albums_dir, long_path
+from fotoduenner.pipeline.analyze import Result
+from fotoduenner.pipeline.thumbs import thumb_paths
+from fotoduenner.scanner.discover import FoundPhoto, ScanResult
+from fotoduenner.scanner.exif import read_exif_dt
+from fotoduenner.scanner.sidecars import combine_ratings
+
+log = logging.getLogger(__name__)
+
+SCHEMA_VERSION = 1
+SQL_CHUNK = 500  # stay below SQLite's bound-parameter limit
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS photos(
+  id INTEGER PRIMARY KEY,
+  rel_path TEXT NOT NULL UNIQUE,         -- POSIX separators, relative to the album
+  companions TEXT NOT NULL DEFAULT '[]', -- JSON list of sidecar rel paths moved along
+  size INTEGER NOT NULL,
+  mtime_ns INTEGER NOT NULL,             -- cache key with size + algo_version
+  fp_key TEXT NOT NULL,                  -- casefold(name)|size|mtime_ns (T13, lookup part)
+  exif_dt TEXT,                          -- raw capture time (T13, confirmation part)
+  file_hash BLOB,                        -- SHA-256 of the content (exact duplicates, A13)
+  taken_at REAL,
+  taken_at_source TEXT,                  -- 'exif' | 'mtime'
+  camera TEXT,
+  exposure_bias REAL,
+  width INTEGER, height INTEGER,         -- as displayed (orientation applied)
+  orientation INTEGER,
+  rating_embedded INTEGER,               -- EXIF/embedded XMP
+  rating_sidecar INTEGER,                -- .xmp sidecar, re-read on every scan
+  rating INTEGER,                        -- combined (sidecars.combine_ratings)
+  offline INTEGER NOT NULL DEFAULT 0,    -- cloud placeholder
+  present INTEGER NOT NULL DEFAULT 1,    -- 0: gone from the album (moved, applied); kept as cache
+  status TEXT NOT NULL DEFAULT 'pending',-- 'pending' | 'done' | 'error'
+  error TEXT,
+  algo_version INTEGER
+);
+CREATE INDEX IF NOT EXISTS photos_fp ON photos(fp_key);
+CREATE INDEX IF NOT EXISTS photos_hash ON photos(file_hash);
+CREATE TABLE IF NOT EXISTS features(
+  photo_id INTEGER PRIMARY KEY REFERENCES photos(id) ON DELETE CASCADE,
+  phash BLOB,
+  embedding BLOB,
+  sharpness_global REAL, sharpness_peak REAL, motion_blur REAL,
+  exposure_mean REAL, clip_low REAL, clip_high REAL, contrast REAL,
+  aesthetic REAL,
+  zeroshot TEXT,
+  face_count INTEGER,
+  faces TEXT
+);
+CREATE TABLE IF NOT EXISTS decisions(
+  photo_id INTEGER PRIMARY KEY REFERENCES photos(id) ON DELETE CASCADE,
+  manual TEXT,
+  locked INTEGER DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS journal(
+  id INTEGER PRIMARY KEY, batch_id TEXT, created_at REAL,
+  src TEXT, dst TEXT, state TEXT
+);
+CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT);
+"""
+
+# Columns copied when a photo is found again via its fingerprint.
+REUSE_COLUMNS = (
+    "file_hash",
+    "exif_dt",
+    "taken_at",
+    "taken_at_source",
+    "camera",
+    "exposure_bias",
+    "width",
+    "height",
+    "orientation",
+    "rating_embedded",
+    "status",
+    "error",
+    "algo_version",
+)
+
+
+def normalize_root(root: Path) -> str:
+    return os.path.normcase(os.path.normpath(os.path.abspath(root)))  # noqa: PTH100 – lexical
+
+
+def album_id_for(root: Path) -> str:
+    """SHA1 of the normalised absolute folder path (02 §4)."""
+    return hashlib.sha1(normalize_root(root).encode("utf-8")).hexdigest()
+
+
+def fingerprint_key(name: str, size: int, mtime_ns: int) -> str:
+    return f"{name.casefold()}|{size}|{mtime_ns}"
+
+
+def connect(db_path: Path, read_only: bool = False) -> sqlite3.Connection:
+    if read_only:
+        conn = sqlite3.connect(f"{db_path.as_uri()}?mode=ro", uri=True, timeout=30)
+    else:
+        conn = sqlite3.connect(db_path, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys=ON")
+    return conn
+
+
+def _chunks(items: Sequence, size: int = SQL_CHUNK) -> Iterator[Sequence]:
+    for start in range(0, len(items), size):
+        yield items[start : start + size]
+
+
+@dataclass(slots=True)
+class SyncReport:
+    total: int = 0
+    new: int = 0
+    changed: int = 0
+    unchanged: int = 0
+    reused: int = 0  # found again via fingerprint (renamed/moved album or file)
+    missing: int = 0  # in the cache, no longer in the album
+    pending: int = 0  # to be analysed
+
+
+class AlbumStore:
+    """Cache of one album under %LOCALAPPDATA%\\FotoDuenner\\albums\\<album_id>\\."""
+
+    def __init__(self, root: Path, data_root: Path | None = None) -> None:
+        self.root = Path(os.path.abspath(root))  # noqa: PTH100 – lexical, keeps subst drives
+        self.album_id = album_id_for(self.root)
+        self.albums_root = albums_dir(data_root)
+        self.dir = self.albums_root / self.album_id
+        self.thumbs_dir = self.dir / "thumbs"
+        self.db_path = self.dir / "album.db"
+        self.thumbs_dir.mkdir(parents=True, exist_ok=True)
+        with contextlib.closing(self.connect()) as conn, conn:
+            conn.executescript(SCHEMA)
+            conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
+            conn.execute(
+                "INSERT OR REPLACE INTO settings(key, value) VALUES('root_path', ?)",
+                (str(self.root),),
+            )
+        self._register()
+
+    def connect(self) -> sqlite3.Connection:
+        """New connection; SQLite connections must not cross threads."""
+        return connect(self.db_path)
+
+    def abs_path(self, rel_path: str) -> Path:
+        return long_path(self.root).joinpath(*PurePosixPath(rel_path).parts)
+
+    def _register(self) -> None:
+        """Update albums\\index.json (path -> id, last opened) for "Zuletzt geöffnet"."""
+        index_path = self.albums_root / "index.json"
+        try:
+            index = json.loads(index_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            index = {}
+        index[self.album_id] = {"path": str(self.root), "last_opened": time.time()}
+        tmp = index_path.with_name("index.json.tmp")
+        tmp.write_text(json.dumps(index, ensure_ascii=False, indent=1), encoding="utf-8")
+        tmp.replace(index_path)
+
+    # --- scan sync ---------------------------------------------------------------------
+
+    def sync(self, scan: ScanResult, cfg: Config) -> SyncReport:
+        """Bring the photo table in line with the scan. Cache key: path + size + mtime + algo."""
+        report = SyncReport(total=len(scan.photos))
+        with contextlib.closing(self.connect()) as conn, conn:
+            rows = {r["rel_path"]: r for r in conn.execute("SELECT * FROM photos")}
+            seen: set[int] = set()
+            new: list[tuple[int, FoundPhoto]] = []
+            for found in scan.photos:
+                row = rows.get(found.rel_path)
+                key = fingerprint_key(found.name, found.size, found.mtime_ns)
+                common = (
+                    json.dumps(found.companions, ensure_ascii=False),
+                    found.sidecar_rating,
+                    int(found.offline),
+                )
+                if row is None:
+                    cur = conn.execute(
+                        "INSERT INTO photos(rel_path, companions, rating_sidecar, offline, size,"
+                        " mtime_ns, fp_key, rating) VALUES(?,?,?,?,?,?,?,?)",
+                        (
+                            found.rel_path,
+                            *common,
+                            found.size,
+                            found.mtime_ns,
+                            key,
+                            combine_ratings(found.sidecar_rating),
+                        ),
+                    )
+                    new.append((int(cur.lastrowid or 0), found))
+                    continue
+                seen.add(row["id"])
+                same_file = row["size"] == found.size and row["mtime_ns"] == found.mtime_ns
+                rating = combine_ratings(row["rating_embedded"], found.sidecar_rating)
+                if same_file:
+                    current = (
+                        row["status"] in ("done", "error")
+                        and row["algo_version"] == cfg.algo_version
+                    )
+                    conn.execute(
+                        "UPDATE photos SET companions=?, rating_sidecar=?, offline=?, rating=?,"
+                        " present=1, status=? WHERE id=?",
+                        (*common, rating, row["status"] if current else "pending", row["id"]),
+                    )
+                    report.unchanged += current
+                    continue
+                report.changed += 1
+                conn.execute(
+                    "UPDATE photos SET companions=?, rating_sidecar=?, offline=?, size=?,"
+                    " mtime_ns=?, fp_key=?, present=1, status='pending', error=NULL,"
+                    " file_hash=NULL, exif_dt=NULL, rating_embedded=NULL, rating=?,"
+                    " algo_version=NULL WHERE id=?",
+                    (
+                        *common,
+                        found.size,
+                        found.mtime_ns,
+                        key,
+                        combine_ratings(found.sidecar_rating),
+                        row["id"],
+                    ),
+                )
+                conn.execute("DELETE FROM features WHERE photo_id=?", (row["id"],))
+
+            gone = [r["id"] for r in rows.values() if r["id"] not in seen and r["present"]]
+            for chunk in _chunks(gone):
+                conn.execute(
+                    f"UPDATE photos SET present=0 WHERE id IN ({','.join('?' * len(chunk))})",
+                    chunk,
+                )
+            report.new = len(new)
+            if new:
+                report.reused = self._reuse_by_fingerprint(conn, new, cfg)
+                report.new -= report.reused
+            report.missing = conn.execute("SELECT COUNT(*) FROM photos WHERE present=0").fetchone()[
+                0
+            ]
+            report.pending = conn.execute(
+                "SELECT COUNT(*) FROM photos WHERE present=1 AND status='pending'"
+            ).fetchone()[0]
+        return report
+
+    def _reuse_by_fingerprint(
+        self, conn: sqlite3.Connection, new: list[tuple[int, FoundPhoto]], cfg: Config
+    ) -> int:
+        """Find new photos again in this album (moved file) or another one (renamed album).
+
+        Lookup by name + size + mtime, confirmed by the EXIF capture time read from the
+        file header (T13). Only fully analysed entries of the current algo version count.
+        """
+        by_key: dict[str, list[tuple[int, FoundPhoto]]] = {}
+        for item in new:
+            found = item[1]
+            by_key.setdefault(fingerprint_key(found.name, found.size, found.mtime_ns), []).append(
+                item
+            )
+        reused = 0
+
+        # 1) Same album: a file moved between subfolders keeps its row (and decisions).
+        for key, candidates in list(by_key.items()):
+            old = conn.execute(
+                "SELECT * FROM photos WHERE fp_key=? AND present=0 AND status='done'"
+                " AND algo_version=?",
+                (key, cfg.algo_version),
+            ).fetchall()
+            for old_row in old:
+                if not candidates:
+                    break
+                new_id, found = candidates[0]
+                if read_exif_dt(str(self.abs_path(found.rel_path))) != old_row["exif_dt"]:
+                    continue
+                candidates.pop(0)
+                conn.execute("DELETE FROM photos WHERE id=?", (new_id,))
+                conn.execute(
+                    "UPDATE photos SET rel_path=?, companions=?, rating_sidecar=?, rating=?,"
+                    " offline=?, present=1 WHERE id=?",
+                    (
+                        found.rel_path,
+                        json.dumps(found.companions, ensure_ascii=False),
+                        found.sidecar_rating,
+                        combine_ratings(old_row["rating_embedded"], found.sidecar_rating),
+                        int(found.offline),
+                        old_row["id"],
+                    ),
+                )
+                reused += 1
+            if not candidates:
+                del by_key[key]
+
+        # 2) Other albums of this user (e.g. the album folder was renamed).
+        if by_key:
+            reused += self._reuse_from_other_albums(conn, by_key, cfg)
+        return reused
+
+    def _other_album_dbs(self) -> Iterable[Path]:
+        for child in self.albums_root.iterdir():
+            db = child / "album.db"
+            if child.name != self.album_id and db.is_file():
+                yield db
+
+    def _reuse_from_other_albums(
+        self,
+        conn: sqlite3.Connection,
+        by_key: dict[str, list[tuple[int, FoundPhoto]]],
+        cfg: Config,
+    ) -> int:
+        reused = 0
+        feature_cols = [r["name"] for r in conn.execute("PRAGMA table_info(features)")]
+        for db_path in self._other_album_dbs():
+            if not by_key:
+                break
+            try:
+                other = connect(db_path, read_only=True)
+            except sqlite3.Error:
+                continue
+            with contextlib.closing(other):
+                try:
+                    if other.execute("PRAGMA user_version").fetchone()[0] != SCHEMA_VERSION:
+                        continue
+                    keys = list(by_key)
+                    matches: list[sqlite3.Row] = []
+                    for chunk in _chunks(keys):
+                        matches += other.execute(
+                            "SELECT * FROM photos WHERE status='done' AND algo_version=?"
+                            f" AND fp_key IN ({','.join('?' * len(chunk))})",
+                            (cfg.algo_version, *chunk),
+                        ).fetchall()
+                except sqlite3.Error as exc:
+                    log.info("skipping album cache %s: %s", db_path.parent.name, exc)
+                    continue
+                for src in matches:
+                    candidates = by_key.get(src["fp_key"])
+                    if not candidates:
+                        continue
+                    new_id, found = candidates[0]
+                    if read_exif_dt(str(self.abs_path(found.rel_path))) != src["exif_dt"]:
+                        continue
+                    if not self._copy_thumbs(db_path.parent / "thumbs", src["id"], new_id):
+                        continue
+                    candidates.pop(0)
+                    if not candidates:
+                        del by_key[src["fp_key"]]
+                    values = [src[c] for c in REUSE_COLUMNS]
+                    rating = combine_ratings(src["rating_embedded"], found.sidecar_rating)
+                    conn.execute(
+                        f"UPDATE photos SET {', '.join(f'{c}=?' for c in REUSE_COLUMNS)},"
+                        " rating=? WHERE id=?",
+                        (*values, rating, new_id),
+                    )
+                    feature = other.execute(
+                        "SELECT * FROM features WHERE photo_id=?", (src["id"],)
+                    ).fetchone()
+                    if feature is not None:
+                        cols = [c for c in feature.keys() if c in feature_cols and c != "photo_id"]  # noqa: SIM118 – Row iterates values
+                        conn.execute(
+                            f"INSERT OR REPLACE INTO features(photo_id, {', '.join(cols)})"
+                            f" VALUES(?{', ?' * len(cols)})",
+                            (new_id, *(feature[c] for c in cols)),
+                        )
+                    reused += 1
+        return reused
+
+    def _copy_thumbs(self, src_dir: Path, src_id: int, dst_id: int) -> bool:
+        pairs = list(
+            zip(thumb_paths(src_dir, src_id), thumb_paths(self.thumbs_dir, dst_id), strict=True)
+        )
+        if not all(src.is_file() for src, _ in pairs):
+            return False
+        try:
+            for src, dst in pairs:
+                shutil.copyfile(src, dst)  # both are cache files of this program
+        except OSError:
+            return False
+        return True
+
+    # --- analysis bookkeeping ----------------------------------------------------------
+
+    def pending(self) -> list[tuple[int, str]]:
+        with contextlib.closing(self.connect()) as conn:
+            return [
+                (r["id"], r["rel_path"])
+                for r in conn.execute(
+                    "SELECT id, rel_path FROM photos WHERE present=1 AND status='pending'"
+                    " ORDER BY rel_path COLLATE NOCASE"
+                )
+            ]
+
+    @staticmethod
+    def save_results(conn: sqlite3.Connection, results: Iterable[Result], cfg: Config) -> None:
+        """Write a batch of worker results in one transaction (02 §5)."""
+        with conn:
+            for res in results:
+                if not res.ok or res.meta is None:
+                    conn.execute(
+                        "UPDATE photos SET status='error', error=?, algo_version=? WHERE id=?",
+                        (res.error, cfg.algo_version, res.photo_id),
+                    )
+                    continue
+                meta = res.meta
+                row = conn.execute(
+                    "SELECT rating_sidecar FROM photos WHERE id=?", (res.photo_id,)
+                ).fetchone()
+                if row is None:
+                    continue
+                conn.execute(
+                    "UPDATE photos SET file_hash=?, exif_dt=?,"
+                    " taken_at=COALESCE(?, mtime_ns / 1e9), taken_at_source=?, camera=?,"
+                    " exposure_bias=?, width=?, height=?, orientation=?, rating_embedded=?,"
+                    " rating=?, status='done', error=NULL, algo_version=? WHERE id=?",
+                    (
+                        res.file_hash,
+                        meta.exif_dt,
+                        meta.taken_at,
+                        "exif" if meta.taken_at is not None else "mtime",
+                        meta.camera,
+                        meta.exposure_bias,
+                        meta.width,
+                        meta.height,
+                        meta.orientation,
+                        meta.rating,
+                        combine_ratings(meta.rating, row["rating_sidecar"]),
+                        cfg.algo_version,
+                        res.photo_id,
+                    ),
+                )
+
+    def status_counts(self) -> dict[str, int]:
+        with contextlib.closing(self.connect()) as conn:
+            return {
+                r["status"]: r["n"]
+                for r in conn.execute(
+                    "SELECT status, COUNT(*) AS n FROM photos WHERE present=1 GROUP BY status"
+                )
+            }

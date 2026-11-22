@@ -56,7 +56,7 @@ Auf `img_1024`, Luminanz Y (0..255):
 - Nachtaufnahmen, Gegenlicht und Sonnenuntergänge haben natürlicherweise viele dunkle Pixel → `clip_low` milde gewichten; „stark unterbelichtet“ erst bei `exposure_mean < 20` **und** `contrast < 15`.
 
 ### 3.4 Hashes (`pipeline/hashing.py`)
-- **Datei-Hash:** BLAKE2b über den gesamten Dateiinhalt → exakte Duplikate (§5.0).
+- **Datei-Hash:** SHA-256 über den gesamten Dateiinhalt → exakte Duplikate (§5.0; SHA-256 statt BLAKE2b, A13).
 - **pHash:** Graustufen 32 × 32, 2D-DCT, linke obere 8 × 8 Koeffizienten (ohne DC), Bit = Koeffizient > Median → 64 Bit. Hamming-Distanz ≤ 8 ⇒ „nahezu identisch“.
 
 ### 3.5 Gesichter (`pipeline/faces.py`)

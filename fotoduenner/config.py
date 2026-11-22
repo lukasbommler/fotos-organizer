@@ -21,9 +21,15 @@ class Config:
     # Bump to force recomputation of cached features.
     algo_version: int = 1
 
+    # Scanning (01 §3)
+    include_subdirs: bool = True
+    sidecar_max_bytes: int = 10 * 1024 * 1024
+
     # Decoding (03 §2, T9)
     decode_target: int = 1600
     decode_min_long_edge: int = 1500
+    # Pillow's decompression-bomb guard; stitched panoramas can exceed its 179 MP default.
+    max_image_pixels: int = 600_000_000
     thumb_small: int = 320
     thumb_large: int = 1600
     thumb_jpeg_quality: int = 85
@@ -95,6 +101,8 @@ class Config:
     target_keep_range: tuple[float, float] = (0.30, 0.90)
 
     # Analysis runtime (02 §5)
+    analysis_workers: int | None = None  # None = physical cores - 1 (at least 1)
+    submit_ahead_per_worker: int = 2  # bounded queue: fast cancel, bounded memory
     db_batch_size: int = 50
     eta_window: int = 50
 

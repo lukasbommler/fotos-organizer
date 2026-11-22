@@ -10,9 +10,22 @@ APP_DIR_NAME = "FotoDuenner"
 
 
 def data_dir() -> Path:
-    """Per-user data directory (%LOCALAPPDATA%\\FotoDuenner); created on demand."""
-    base = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
-    path = Path(base) / APP_DIR_NAME
+    """Per-user data directory (%LOCALAPPDATA%\\FotoDuenner); created on demand.
+
+    FOTODUENNER_DATA overrides the location (tests, benchmarks).
+    """
+    override = os.environ.get("FOTODUENNER_DATA")
+    if override:
+        path = Path(override)
+    else:
+        base = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
+        path = Path(base) / APP_DIR_NAME
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def albums_dir(root: Path | None = None) -> Path:
+    path = (root or data_dir()) / "albums"
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -62,9 +75,11 @@ def long_path(path: Path) -> Path:
     """
     if os.name != "nt":
         return path
-    text = str(path.resolve())
+    text = str(path)
     if text.startswith("\\\\?\\"):
         return path
+    # abspath is purely lexical (no filesystem access), unlike resolve().
+    text = os.path.abspath(text)  # noqa: PTH100
     if text.startswith("\\\\"):  # UNC share: \\server\share -> \\?\UNC\server\share
         return Path("\\\\?\\UNC\\" + text[2:])
     return Path("\\\\?\\" + text)
