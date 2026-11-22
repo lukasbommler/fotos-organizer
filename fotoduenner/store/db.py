@@ -16,7 +16,7 @@ from pathlib import Path, PurePosixPath
 
 from fotoduenner.config import Config
 from fotoduenner.paths import albums_dir, long_path
-from fotoduenner.pipeline.analyze import Result
+from fotoduenner.pipeline.analyze import FaceJob, FaceResult, Result
 from fotoduenner.pipeline.thumbs import thumb_paths
 from fotoduenner.scanner.discover import FoundPhoto, ScanResult
 from fotoduenner.scanner.exif import read_exif_dt
@@ -24,7 +24,7 @@ from fotoduenner.scanner.sidecars import combine_ratings
 
 log = logging.getLogger(__name__)
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 SQL_CHUNK = 500  # stay below SQLite's bound-parameter limit
 
 SCHEMA = """
@@ -63,7 +63,8 @@ CREATE TABLE IF NOT EXISTS features(
   aesthetic REAL,
   zeroshot TEXT,
   face_count INTEGER,
-  faces TEXT
+  faces TEXT,                            -- JSON list of faces (pipeline/faces.py Face.to_json)
+  faces_native INTEGER NOT NULL DEFAULT 0 -- T6 second pass: 0 open, 1 done, -1 failed
 );
 CREATE TABLE IF NOT EXISTS decisions(
   photo_id INTEGER PRIMARY KEY REFERENCES photos(id) ON DELETE CASCADE,
@@ -76,6 +77,11 @@ CREATE TABLE IF NOT EXISTS journal(
 );
 CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT);
 """
+
+# Schema upgrades, applied in order to databases with an older user_version.
+MIGRATIONS: dict[int, tuple[str, ...]] = {
+    2: ("ALTER TABLE features ADD COLUMN faces_native INTEGER NOT NULL DEFAULT 0",),
+}
 
 # Columns copied when a photo is found again via its fingerprint.
 REUSE_COLUMNS = (
@@ -120,6 +126,18 @@ def connect(db_path: Path, read_only: bool = False) -> sqlite3.Connection:
     return conn
 
 
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Upgrade an existing database in place; a fresh one gets the full schema instead."""
+    version = conn.execute("PRAGMA user_version").fetchone()[0]
+    exists = conn.execute("SELECT 1 FROM sqlite_master WHERE name='features'").fetchone()
+    if not exists or version >= SCHEMA_VERSION:
+        return
+    for target in range(version + 1, SCHEMA_VERSION + 1):
+        for statement in MIGRATIONS.get(target, ()):
+            conn.execute(statement)
+        log.info("album database upgraded to schema %d", target)
+
+
 def _chunks(items: Sequence, size: int = SQL_CHUNK) -> Iterator[Sequence]:
     for start in range(0, len(items), size):
         yield items[start : start + size]
@@ -148,6 +166,7 @@ class AlbumStore:
         self.db_path = self.dir / "album.db"
         self.thumbs_dir.mkdir(parents=True, exist_ok=True)
         with contextlib.closing(self.connect()) as conn, conn:
+            _migrate(conn)
             conn.executescript(SCHEMA)
             conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
             conn.execute(
@@ -442,6 +461,31 @@ class AlbumStore:
                         res.photo_id,
                     ),
                 )
+                feat = res.features
+                if feat is None:
+                    conn.execute("DELETE FROM features WHERE photo_id=?", (res.photo_id,))
+                    continue
+                conn.execute(
+                    "INSERT OR REPLACE INTO features(photo_id, phash, embedding,"
+                    " sharpness_global, sharpness_peak, exposure_mean, clip_low, clip_high,"
+                    " contrast, aesthetic, zeroshot, face_count, faces, faces_native)"
+                    " VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)",
+                    (
+                        res.photo_id,
+                        feat.phash,
+                        feat.embedding,
+                        feat.sharpness_global,
+                        feat.sharpness_peak,
+                        feat.exposure_mean,
+                        feat.clip_low,
+                        feat.clip_high,
+                        feat.contrast,
+                        feat.aesthetic,
+                        json.dumps(feat.zeroshot, separators=(",", ":")),
+                        feat.face_count,
+                        json.dumps(feat.faces, separators=(",", ":")),
+                    ),
+                )
 
     def status_counts(self) -> dict[str, int]:
         with contextlib.closing(self.connect()) as conn:
@@ -451,3 +495,35 @@ class AlbumStore:
                     "SELECT status, COUNT(*) AS n FROM photos WHERE present=1 GROUP BY status"
                 )
             }
+
+    # --- second pass (T6) --------------------------------------------------------------
+
+    def series_inputs(self, conn: sqlite3.Connection) -> list[sqlite3.Row]:
+        """Rows needed to find series (03 §5.1) among analysed photos still in the album."""
+        return conn.execute(
+            "SELECT p.id, p.rel_path, p.taken_at, p.taken_at_source, f.phash, f.embedding,"
+            " f.face_count, f.faces, f.faces_native FROM photos p JOIN features f"
+            " ON f.photo_id = p.id WHERE p.present=1 AND p.status='done'"
+            " AND f.phash IS NOT NULL AND f.embedding IS NOT NULL ORDER BY p.id"
+        ).fetchall()
+
+    def face_jobs(self, rows: Iterable[sqlite3.Row]) -> list[FaceJob]:
+        return [
+            FaceJob(r["id"], str(self.abs_path(r["rel_path"])), r["rel_path"], r["faces"])
+            for r in rows
+        ]
+
+    @staticmethod
+    def save_face_results(conn: sqlite3.Connection, results: Iterable[FaceResult]) -> None:
+        """Store native face sharpness. A failed second pass keeps the first-pass values."""
+        with conn:
+            for res in results:
+                if res.ok:
+                    conn.execute(
+                        "UPDATE features SET faces=?, faces_native=1 WHERE photo_id=?",
+                        (res.faces_json, res.photo_id),
+                    )
+                else:
+                    conn.execute(
+                        "UPDATE features SET faces_native=-1 WHERE photo_id=?", (res.photo_id,)
+                    )

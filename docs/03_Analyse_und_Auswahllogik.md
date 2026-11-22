@@ -60,7 +60,7 @@ Auf `img_1024`, Luminanz Y (0..255):
 - **pHash:** Graustufen 32 × 32, 2D-DCT, linke obere 8 × 8 Koeffizienten (ohne DC), Bit = Koeffizient > Median → 64 Bit. Hamming-Distanz ≤ 8 ⇒ „nahezu identisch“.
 
 ### 3.5 Gesichter (`pipeline/faces.py`)
-- **Detektor:** OpenCV **YuNet** (`face_detection_yunet_2023mar.onnx`, opencv_zoo, Lizenz prüfen, ≈ 0,3 MB) über `cv2.FaceDetectorYN.create(...)`, Eingabe `img_640`, `score_threshold=0.75`, `nms_threshold=0.3`, `top_k=50`. Modell aus Bytes laden (Umlaut-Pfade!).
+- **Detektor:** OpenCV **YuNet** (`face_detection_yunet_2023mar.onnx`, opencv_zoo, Lizenz prüfen, ≈ 0,3 MB) über `cv2.FaceDetectorYN.create(...)`, Eingabe `img_640` **und** `img_480` (zusammengeführt, A23), `score_threshold=0.6` (Plan 0,75: nur 91 % Trefferquote am Testset), `nms_threshold=0.3`, `top_k=50`. Modell aus Bytes laden (Umlaut-Pfade!).
 - Pro Gesicht speichern: Box (relativ), `size_rel` = Boxbreite / Bildbreite, `conf`, 5 Landmarken.
 - Gesichter mit `size_rel < 0,015` verwerfen (Rauschen, Menschenmenge in der Ferne).
 - **Gesichtsschärfe:** Box um 20 % erweitern, aus `img_1600` ausschneiden, auf 160 × 160 skalieren, Laplace-Varianz → album-relativer Rang. **Zweiter Durchgang (T6):** Für Serienmitglieder mit Gesichtern wird das Original in voller Auflösung dekodiert und die Gesichtsschärfe auf dem nativen Ausschnitt (ohne Hochskalieren) neu bestimmt – nur so sind feine Unterschiede innerhalb einer Serie sichtbar.
@@ -78,7 +78,7 @@ Auf `img_1024`, Luminanz Y (0..255):
 - Bekannte Grenze v1: Personen sehr klein oder ohne Gesicht werden nur teilweise (über Zero-Shot) erkannt. Option später: Personen-Detektor (Körper). **Lizenz beachten:** Ultralytics-YOLO ist AGPL – vermeiden.
 
 ### 3.6 Bildinhalt-Embedding (`pipeline/embed.py`)
-- Modell: **CLIP ViT-B/32**, nur Bild-Encoder, ONNX. Kandidat: Hugging Face `Xenova/clip-vit-base-patch32` (`onnx/vision_model_quantized.onnx` bzw. `vision_model.onnx`; MIT-Lizenz des OpenAI-CLIP). Alternativ selbst exportieren mit `open_clip` (Dev-Skript mit PyTorch). Ausgabe-Tensor (`image_embeds`, 512-dim, projiziert) **verifizieren**.
+- Modell: **CLIP ViT-B/32**, nur Bild-Encoder, ONNX. Hugging Face `Xenova/clip-vit-base-patch32`, **`onnx/vision_model_fp16.onnx`** (A25: INT8 `vision_model_quantized.onnx` wich mit Kosinus 0,92 zu stark von FP32 ab; MIT-Lizenz des OpenAI-CLIP). Alternativ selbst exportieren mit `open_clip` (Dev-Skript mit PyTorch). Ausgabe-Tensor (`image_embeds`, 512-dim, projiziert) **verifizieren**.
 - Vorverarbeitung (CLIP-Standard): kürzere Seite auf 224 (bikubisch), mittig 224 × 224 zuschneiden, RGB float32 / 255, Normierung mean = (0,48145466; 0,4578275; 0,40821073), std = (0,26862954; 0,26130258; 0,27577711), Layout NCHW.
 - Embedding L2-normalisieren, als float16 speichern.
 - Kontrolle: INT8- vs. FP32-Embeddings auf 200 Bildern vergleichen (mittlere Kosinus-Ähnlichkeit ≥ 0,98 → INT8 verwenden).
@@ -90,7 +90,7 @@ Auf `img_1024`, Luminanz Y (0..255):
 - Album-relativ als Perzentil-Rang nutzen.
 
 ### 3.8 Zero-Shot-Labels (`pipeline/zeroshot.py`, T7, D13)
-- Text-Embeddings werden **vorab** in der Entwicklung mit dem CLIP-Text-Encoder berechnet (`scripts/make_text_embeddings.py`) und als `.npy` mitgeliefert – zur Laufzeit kein Text-Encoder, kein Tokenizer.
+- Text-Embeddings werden **vorab** in der Entwicklung mit dem CLIP-Text-Encoder berechnet (`scripts/make_text_embeddings.py`) und als `fotoduenner/assets/zeroshot_text.npz` mitgeliefert – zur Laufzeit kein Text-Encoder, kein Tokenizer. Prompts nur englisch (A21).
 - Je Label mehrere deutsch-/englischsprachige Prompts (Prompt-Ensemble, gemittelt), plus neutrale Gegen-Prompts („ein Urlaubsfoto“, „eine Landschaft“, „ein Foto von Menschen“).
 - Score je Label = Softmax über (Label-Prompts + Gegen-Prompts) mit CLIP-Temperatur 100; Label gilt, wenn Score ≥ `ZS_THRESHOLD[label]`.
 
@@ -101,7 +101,7 @@ Auf `img_1024`, Luminanz Y (0..255):
 | `document_sign` (Speisekarte, Schild, Dokument, Fahrplan) | wie `screenshot` |
 | `blurry` („unscharfes Foto“) | nur zusätzliches „Bitte prüfen“, nie Aussortieren |
 
-- Jedes Label einzeln über `ZS_ENABLED` abschaltbar. In M3 an Testbildern prüfen; unzuverlässige Labels abschalten und in DECISIONS.md vermerken.
+- Jedes Label einzeln über `ZS_ENABLED` abschaltbar. In M3 an Testbildern prüfen; unzuverlässige Labels abschalten und in DECISIONS.md vermerken. **Ergebnis M3 (A24):** `person_back`, `screenshot`, `document_sign` zuverlässig mit neuen Schwellen; `blurry` abgeschaltet.
 
 ## 4. Qualitäts-Aussortierung (Bereich „Qualität“)
 
@@ -244,7 +244,8 @@ Bezugsbilder werden mit ihrer Position in der Gruppe angegeben und in der UI bei
 ```python
 ALGO_VERSION = 1
 DECODE_TARGET = 1600; DECODE_MIN_LONG_EDGE = 1500
-FACE_SCORE_THRESHOLD = 0.75; FACE_MIN_SIZE_REL = 0.015
+FACE_SCORE_THRESHOLD = 0.6; FACE_DETECT_EDGES = (480, 640); FACE_MIN_SIZE_REL = 0.015  # A23
+EYES_OPEN_THRESHOLD = 0.6  # A23
 PEOPLE_MIN_SIZE_REL = 0.035; PEOPLE_MIN_CONF = 0.85; EYES_MIN_SIZE_REL = 0.04; EYES_MIN_PRESENCE = 0.5
 PHASH_SERIES_MAX = 8; SERIES_PHASH_DT = 120; SERIES_COS_MIN = 0.95; SERIES_COS_DT = 300
 SEQ_MAX_GAP = 3.0; SEQ_MIN_LEN = 3; BRACKET_MIN_EV_SPAN = 0.7
@@ -258,8 +259,8 @@ CLEAN_DISTINCT_COS = 0.93
 BLUR_ABS = None   # in M7 kalibrieren; bis dahin nur "Bitte prüfen" (T5)
 BLUR_REL = 0.10; BLUR_REVIEW_REL = 0.05; MISFIRE_SHARP_REL = 0.03
 OVEREXP_CLIP_HIGH = 0.35; UNDEREXP_MEAN = 20; UNDEREXP_CONTRAST = 15
-ZS_ENABLED = {"person_back": True, "screenshot": True, "document_sign": True, "blurry": True}
-ZS_THRESHOLD = {"person_back": 0.5, "screenshot": 0.6, "document_sign": 0.6, "blurry": 0.6}
+ZS_ENABLED = {"person_back": True, "screenshot": True, "document_sign": True, "blurry": False}  # A24
+ZS_THRESHOLD = {"person_back": 0.70, "screenshot": 0.50, "document_sign": 0.65, "blurry": 0.6}  # A24
 ZS_LOW_VALUE_FACTOR = 0.8
 DEFAULT_MODE = "clean"; TARGET_KEEP_DEFAULT = 0.50; TARGET_KEEP_RANGE = (0.30, 0.90)
 ```

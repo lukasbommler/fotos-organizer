@@ -5,6 +5,9 @@
 Creates (once) N synthetic 24 MP JPEGs of ~13 MB under %LOCALAPPDATA%\\FotoDuenner-dev\\bench
 (outside Google Drive, A8), analyses them with a fresh cache for each worker count, and
 reports ms per stage, throughput, peak RAM and the projection for 2,000 photos.
+40 % of the photos carry a portrait from tests/fixtures/faces (faces, eyes); the noise
+backgrounds look alike to CLIP, so every face photo also gets the second pass (T6) – a
+deliberate worst case for the M3 time budget.
 ``--record`` appends the result to docs/BENCHMARKS.md.
 """
 
@@ -42,6 +45,9 @@ NOISE = 16  # with quality 95: ~13 MB per file, like a 24 MP camera JPEG
 QUALITY = 95
 PROJECT_TO = 2000
 A7_CAP = 3  # 4-core office laptop equivalent (docs/DECISIONS.md A7)
+FACES = sorted((REPO / "tests" / "fixtures" / "faces").glob("*.jpg"))
+FACE_SHARE = (1, 2)  # seed % 5 in FACE_SHARE -> portrait pasted in (never the rotated ones)
+ALBUM_NAME = "album_24mp_m3"
 
 
 def _make_one(args: tuple[Path, int]) -> None:
@@ -53,6 +59,11 @@ def _make_one(args: tuple[Path, int]) -> None:
         Image.fromarray(coarse).resize(SIZE, Image.Resampling.BICUBIC), dtype=np.int16
     )
     pixels = np.clip(base + rng.integers(-NOISE, NOISE + 1, (h, w, 3), dtype=np.int16), 0, 255)
+    if seed % 5 in FACE_SHARE and FACES:
+        face = Image.open(FACES[seed % len(FACES)]).convert("RGB")
+        face = face.resize((face.width * 2, face.height * 2), Image.Resampling.BICUBIC)
+        x, y = int(rng.integers(0, w - face.width)), int(rng.integers(0, h - face.height))
+        pixels[y : y + face.height, x : x + face.width] = np.asarray(face)
     minute, second = divmod(seed, 60)
     exif = piexif.dump(
         {
@@ -73,7 +84,7 @@ def _make_one(args: tuple[Path, int]) -> None:
 
 
 def ensure_album(n: int) -> Path:
-    album = BENCH_ROOT / "album_24mp"
+    album = BENCH_ROOT / ALBUM_NAME
     album.mkdir(parents=True, exist_ok=True)
     missing = [(album / f"BENCH_{i:05d}.jpg", i) for i in range(n)]
     missing = [item for item in missing if not item[0].exists()]
@@ -111,10 +122,10 @@ class PeakRam:
         self._thread.join()
 
 
-def run_once(album: Path, files: list[Path], workers: int) -> dict[str, object]:
+def run_once(album: Path, files: list[Path], workers: int, clip: str) -> dict[str, object]:
     cache = BENCH_ROOT / f"cache_w{workers}"
     shutil.rmtree(cache, ignore_errors=True)  # our own cache only, never the album
-    cfg = replace(DEFAULT, analysis_workers=workers)
+    cfg = replace(DEFAULT, analysis_workers=workers, clip_in_worker=clip == "worker")
     with PeakRam() as ram:
         start = time.perf_counter()
         summary = analyze_album(album, cfg, workers=workers, data_root=cache, keep_results=True)
@@ -127,6 +138,7 @@ def run_once(album: Path, files: list[Path], workers: int) -> dict[str, object]:
     n = len(summary.results)
     return {
         "workers": workers,
+        "clip": clip,
         "n": n,
         "errors": summary.errors,
         "wall": wall,
@@ -134,6 +146,7 @@ def run_once(album: Path, files: list[Path], workers: int) -> dict[str, object]:
         "projected_min": wall / n * PROJECT_TO / 60,
         "peak_ram_mb": ram.peak / 1e6,
         "stages": {k: statistics.mean(v) for k, v in stages.items()},
+        "faces_native": summary.faces_native,
         "mb_per_file": statistics.mean(p.stat().st_size for p in files) / 1e6,
     }
 
@@ -153,20 +166,22 @@ def cpu_name() -> str:
 
 
 def report(runs: list[dict[str, object]], n: int) -> str:
-    stage_names = ["read", "hash", "decode", "thumbs"]
+    stage_names = ["read", "hash", "decode", "thumbs", "quality", "faces", "clip"]
     lines = [
-        f"### {datetime.now():%Y-%m-%d %H:%M} – M1 (Einlesen + Vorschauen), v{__version__}",
+        f"### {datetime.now():%Y-%m-%d %H:%M} – M3 (alle Merkmale + 2. Durchgang), v{__version__}",
         "",
         f"- CPU: {cpu_name()} ({psutil.cpu_count(logical=False)} Kerne / "
         f"{psutil.cpu_count()} Threads), RAM {psutil.virtual_memory().total / 1e9:.0f} GB, "
         f"Python {platform.python_version()}",
         f"- {n} synthetische 24-MP-JPEGs, Ø {runs[0]['mb_per_file']:.1f} MB, SSD; Dateien lagen "
         "im Datei-Cache des Betriebssystems (Lesezeiten optimistisch, USB-HDD deutlich langsamer)",
+        f"- 40 % mit Gesicht; zweiter Durchgang (T6) für {runs[0]['faces_native']} Bilder "
+        "(Worst Case: jedes Gesichtsbild in einer Serie)",
         "",
-        "| Worker | ms/Bild (Wand) | Hochrechnung 2.000 | Spitzen-RAM | "
+        "| Worker | CLIP | ms/Bild (Wand) | Hochrechnung 2.000 | Spitzen-RAM | "
         + " | ".join(f"{s} ms" for s in stage_names)
         + " |",
-        "|---|---|---|---|" + "---|" * len(stage_names),
+        "|---|---|---|---|---|" + "---|" * len(stage_names),
     ]
     for run in runs:
         stages = run["stages"]
@@ -174,11 +189,15 @@ def report(runs: list[dict[str, object]], n: int) -> str:
         cells = " | ".join(f"{stages.get(s, 0):.0f}" for s in stage_names)
         mark = " (A7)" if run["workers"] == A7_CAP else ""
         lines.append(
-            f"| {run['workers']}{mark} | {run['per_image_ms']:.0f} | "
+            f"| {run['workers']}{mark} | {run['clip']} | {run['per_image_ms']:.0f} | "
             f"{run['projected_min']:.1f} min | {run['peak_ram_mb']:.0f} MB | {cells} |"
         )
     lines.append("")
-    lines.append("Stufen-Zeiten = CPU-Zeit je Bild innerhalb eines Workers (Mittelwert).")
+    lines.append(
+        "Stufen-Zeiten = CPU-Zeit je Bild innerhalb eines Workers (Mittelwert); „faces“ nur "
+        "erster Durchgang; „clip“ bei „stage“ = Anteil am Batch im Hauptprozess (16 Bilder, "
+        "mehrere Threads). Wand-Zeit und Hochrechnung enthalten den zweiten Durchgang."
+    )
     return "\n".join(lines)
 
 
@@ -187,6 +206,7 @@ def main() -> int:
     parser.add_argument("--n", type=int, default=300)
     parser.add_argument("--workers", default="1,2,3,auto")
     parser.add_argument("--record", action="store_true", help="append to docs/BENCHMARKS.md")
+    parser.add_argument("--clip", default="stage", help="stage, worker or both (T11)")
     args = parser.parse_args()
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(errors="replace")  # cp1252 consoles
@@ -205,9 +225,10 @@ def main() -> int:
         if count not in counts:
             counts.append(count)
     runs = []
-    for count in counts:
-        print(f"Worker {count} ...", flush=True)
-        run = run_once(album, files, count)
+    modes = ["worker", "stage"] if args.clip == "both" else [args.clip]
+    for count, clip in [(c, m) for c in counts for m in modes]:
+        print(f"Worker {count}, CLIP {clip} ...", flush=True)
+        run = run_once(album, files, count, clip)
         print(
             f"  {run['per_image_ms']:.0f} ms/Bild, 2.000 Bilder ~ {run['projected_min']:.1f} min,"
             f" RAM {run['peak_ram_mb']:.0f} MB, Fehler {run['errors']}",

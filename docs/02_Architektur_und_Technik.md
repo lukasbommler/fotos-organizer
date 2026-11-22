@@ -62,12 +62,17 @@ FotoDuenner/
 ├── scripts/
 │   ├── fetch_models.py         # lädt Modelle einmalig (Entwicklung), prüft SHA256
 │   ├── make_text_embeddings.py # Zero-Shot-Text-Embeddings mit CLIP-Text-Encoder (nur Entwicklung)
+│   ├── fetch_testset.py        # Auswertungs-Fotos von Wikimedia Commons (nur Entwicklung, nicht im Git)
+│   ├── eval_features.py        # M3-Abnahme: Gesichter, Augen, Zero-Shot, INT8 vs. FP32
+│   ├── compare_grouping_embeddings.py  # T8: CLIP vs. DINOv2 als Gruppierungs-Embedding
+│   ├── bench_clip_variants.py  # T11: CLIP pro Worker vs. getrennte Batch-Stufe
 │   ├── benchmark.py            # misst Durchsatz je Stufe
 │   └── build_windows.ps1       # PyInstaller-Build + ZIP + THIRD_PARTY_LICENSES
 ├── fotoduenner/
 │   ├── __main__.py             # Launcher: Einzelinstanz, Port, Server-Thread, pywebview-Fenster
 │   ├── config.py               # alle Schwellen/Gewichte (Dataclass, Defaults aus 03)
 │   ├── paths.py                # %LOCALAPPDATA%, \\?\-Long-Path-Handling
+│   ├── assets/                 # kleine abgeleitete Daten im Paket (zeroshot_text.npz)
 │   ├── scanner/
 │   │   ├── discover.py         # JPEG-Dateien finden, Ausschlüsse
 │   │   ├── sidecars.py         # .xmp-Sidecars zuordnen → "PhotoItem"
@@ -80,10 +85,12 @@ FotoDuenner/
 │   │   ├── embed.py            # CLIP-Embedding (ONNX)
 │   │   ├── aesthetic.py        # Ästhetik-Kopf auf CLIP-Embedding
 │   │   ├── zeroshot.py         # Zero-Shot-Labels aus Embedding + vorab berechneten Text-Embeddings
-│   │   ├── hashing.py          # pHash + Datei-Hash
-│   │   ├── analyze.py          # Analyse eines Bildes im Worker (Job → Result)
+│   │   ├── hashing.py          # pHash (Datei-Hash SHA-256 direkt in analyze.py)
+│   │   ├── models.py           # lädt alle Modelle einmal je Worker, immer aus Bytes
+│   │   ├── analyze.py          # Analyse eines Bildes im Worker (Job → Result), 2. Durchgang (T6)
 │   │   └── runner.py           # Orchestrierung, Prozess-Pool, Fortschritt, Abbruch
 │   ├── grouping/
+│   │   ├── series.py           # Ebene 1: Serien (Union-Find, 03 §5.1) – ab M3 für den 2. Durchgang
 │   │   ├── sequences.py        # Belichtungsreihen, Panoramen
 │   │   └── cluster.py          # Distanz, Serien, Motivgruppen
 │   ├── selection/
@@ -160,7 +167,9 @@ features(
   aesthetic REAL,
   zeroshot TEXT,                 -- JSON: {label: score}
   face_count INTEGER,
-  faces TEXT                     -- JSON: [{box, size_rel, conf, sharpness, eyes_open}, ...]
+  faces TEXT,                    -- JSON: [{box, size_rel, conf, landmarks, sharpness,
+                                 --         sharpness_native, eyes_open, blink, presence}, ...]
+  faces_native INTEGER           -- 2. Durchgang (T6): 0 offen, 1 erledigt, −1 fehlgeschlagen
 )
 decisions(
   photo_id INTEGER PRIMARY KEY,
@@ -189,20 +198,22 @@ Analyse – pro Bild komplett in einem Worker (ProcessPool, Worker = max(1, Kern
   Datei lesen → Datei-Hash → JPEG mit draft verkleinert dekodieren → Orientierung anwenden
   → Vorschauen schreiben (320 + 1600 px, JPEG)
   → Schärfe, Belichtung, pHash
-  → Gesichter (YuNet) auf 640-px-Version; Augen offen auf Gesichtsausschnitten
-  → CLIP-Embedding (ONNX, 1 Thread pro Worker) → Ästhetik → Zero-Shot-Scores
-Ergebnisse werden in Batches (z. B. alle 50 Bilder) in SQLite geschrieben → Fortsetzen nach Abbruch.
+  → Gesichter (YuNet) auf 480- und 640-px-Version (A23); Augen offen auf Gesichtsausschnitten
+  → 224-px-Ausschnitt für CLIP
+CLIP-Stufe (Thread im Hauptprozess, A26): Embedding im Batch (16, Threads = Worker-Zahl)
+  → Ästhetik → Zero-Shot-Scores → in Batches in SQLite schreiben → Fortsetzen nach Abbruch.
 Zweiter Durchgang (nur Serienmitglieder mit Gesichtern, T6):
   Original in voller Auflösung dekodieren, Gesichtsschärfe auf nativen Ausschnitten.
 ```
 
-Eine getrennte CLIP-Batch-Stufe (Hauptprozess, Batch 16–32, mehrere Threads) wird nur gebaut, wenn sie im Benchmark messbar schneller ist.
+Eine getrennte CLIP-Batch-Stufe (Hauptprozess, Batch 16–32, mehrere Threads) wird nur gebaut, wenn sie im Benchmark messbar schneller ist. **Ergebnis M3:** mit CLIP FP16 ist sie 18 % schneller und halbiert den Spitzen-RAM – gebaut (DECISIONS A25, A26).
 
 Details:
 - **Dekodierung (T9):** Die `draft`-Skalierung (1/2, 1/4, 1/8) so wählen, dass die lange Kante ≥ ~1500 px bleibt (bei 24 MP meist 1/4).
-- Jeder Worker lädt YuNet, Augenmodell und CLIP **einmal** beim Start (Pool-Initializer), nicht pro Bild.
-- ONNX Runtime: `intra_op_num_threads = 1` pro Worker, `graph_optimization_level = ORT_ENABLE_ALL`. CLIP bevorzugt als INT8-quantisierte Variante; Qualität gegen FP32 prüfen (siehe 05).
-- **Prozesspriorität** auf „Niedriger als normal“ setzen (`psutil.Process().nice(psutil.BELOW_NORMAL_PRIORITY_CLASS)`, auch in Workern), damit der Laptop bedienbar bleibt.
+- Jeder Worker lädt YuNet und Augenmodelle **einmal** beim Start (Pool-Initializer), nicht pro Bild; CLIP lädt nur die CLIP-Stufe (einmal je Programmlauf).
+- ONNX Runtime: `intra_op_num_threads = 1` pro Worker, `graph_optimization_level = ORT_ENABLE_ALL`. CLIP als FP16-Variante (INT8 wich zu stark von FP32 ab, A25).
+- Worker-Zahl = physische Kerne − 1, zusätzlich begrenzt durch freien RAM (≈ 0,8 GB je Worker, A25).
+- **Prozesspriorität** auf „Niedriger als normal“ setzen (`psutil.Process().nice(psutil.BELOW_NORMAL_PRIORITY_CLASS)`, in Workern und – während einer Analyse – im Hauptprozess wegen der CLIP-Stufe), damit der Laptop bedienbar bleibt.
 - Windows + multiprocessing: Start-Methode `spawn`; `if __name__ == "__main__":` und `multiprocessing.freeze_support()` im Launcher – **Pflicht für PyInstaller**.
 - Abbruch: gemeinsames `Event`; laufende Bilder fertig machen, Rest verwerfen, Status bleibt `pending`.
 - Fortschritt per SSE: `{stage, done, total, eta_seconds, current_file}`; ETA aus gleitendem Mittel der letzten 50 Bilder.
@@ -214,12 +225,12 @@ Details:
 | Datei lesen + Hash | 25–45 ms | USB-HDD: 100–150 ms (dann I/O-gebunden) |
 | JPEG-Dekodierung mit `draft` (1/4 im DCT) | ~~40–70 ms~~ gemessen 120–190 ms | bei 13-MB-Dateien dominiert die Entropie-Dekodierung; `draft` spart nur ~25 % (docs/BENCHMARKS.md) |
 | Vorschauen (2 Größen, JPEG q=85) | 8–15 ms | |
-| Schärfe + Belichtung + pHash | 10–15 ms | |
-| YuNet (640 px) | 10–20 ms | |
-| Augen offen (nur Bilder mit Gesichtern, je Gesicht) | 15–30 ms | |
-| CLIP ViT-B/32 INT8 (1 Thread) | 40–80 ms | |
+| Schärfe + Belichtung + pHash | 10–15 ms | gemessen 21–25 ms unter Last |
+| YuNet (640 px) | 10–20 ms | ab M3 480 + 640 px: ≈ 35 ms (A23) |
+| Augen offen (nur Bilder mit Gesichtern, je Gesicht) | 15–30 ms | Gesichter-Stufe gesamt gemessen ≈ 55–65 ms bei 40 % Gesichtsbildern |
+| CLIP ViT-B/32 ~~INT8~~ FP16 | 40–80 ms | gemessen 110 ms (1 Thread); als Batch-Stufe ≈ 65 ms Anteil je Bild (A25, A26) |
 | Zero-Shot + Ästhetik | < 1 ms | Skalarprodukte auf dem Embedding |
-| **Summe** | **≈ 150–270 ms CPU-Zeit** | parallelisiert auf ~3 Kerne → **≈ 3–6 min für 2.000 Bilder** |
+| **Summe** | **≈ 150–270 ms CPU-Zeit** | gemessen (M3, 3 Worker): **136 ms Wandzeit je Bild → 4,5 min für 2.000 Bilder** inkl. zweitem Durchgang |
 | Zweiter Durchgang (T6) | 250–400 ms pro betroffenem Bild | nur Serienmitglieder mit Gesichtern |
 
 ## 6. Übernehmen und Rückgängig (Datensicherheit)

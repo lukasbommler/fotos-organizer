@@ -30,6 +30,9 @@ from fotoduenner.paths import dev_models_dir
 HF_CLIP = "https://huggingface.co/Xenova/clip-vit-base-patch32/resolve/6b7c523703ae26e39be4b03774966f8571c7f523"
 HF_YUNET = "https://huggingface.co/opencv/face_detection_yunet/resolve/3cc26e7f1014a5ee5d74a42acee58bafc9d0a310"
 GH_LAION = "https://raw.githubusercontent.com/LAION-AI/aesthetic-predictor/6d122adad522ab246644d9dc1c6d7a3810ee255f"
+HF_DINO = (
+    "https://huggingface.co/Xenova/dinov2-small/resolve/c2bb04a51fab207c420665f1946016107bffc701"
+)
 MP_LANDMARKER = (
     "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1"
 )
@@ -49,10 +52,23 @@ ASSETS: tuple[Asset, ...] = (
         f"{HF_YUNET}/face_detection_yunet_2023mar.onnx",
         "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4",
     ),
+    # FP16 weights, computed in FP32: identical embeddings to FP32 (A25). INT8 failed M3.
+    Asset(
+        "clip_vit_b32_vision_fp16.onnx",
+        f"{HF_CLIP}/onnx/vision_model_fp16.onnx",
+        "35c4e0fb0aeee527dcde1693520b214a34424a786babd530f35366bad5844efd",
+    ),
     Asset(
         "clip_vit_b32_vision_int8.onnx",
         f"{HF_CLIP}/onnx/vision_model_quantized.onnx",
         "583fd1110a514667812fee7d684952aaf82a99b959760c8d7dca7e0ab9839299",
+        dev_only=True,
+    ),
+    Asset(
+        "clip_vit_b32_vision_uint8.onnx",
+        f"{HF_CLIP}/onnx/vision_model_uint8.onnx",
+        "b95448754a6ae56964ec80c570c80bb9863787ee85f51b664abed8c0e5f22a7a",
+        dev_only=True,
     ),
     Asset(
         "sa_0_4_vit_b_32_linear.pth",
@@ -81,6 +97,19 @@ ASSETS: tuple[Asset, ...] = (
         "face_landmarker.task",
         f"{MP_LANDMARKER}/face_landmarker.task",
         "64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff",
+        dev_only=True,
+    ),
+    # T8: DINOv2-small as grouping embedding candidate (M3 comparison).
+    Asset(
+        "dinov2_small_fp32.onnx",
+        f"{HF_DINO}/onnx/model.onnx",
+        "83141175ec78b4ff9a2bb58a4c7c264ba0054d1c2e122e5a8114b79a8d4179ea",
+        dev_only=True,
+    ),
+    Asset(
+        "dinov2_small_int8.onnx",
+        f"{HF_DINO}/onnx/model_quantized.onnx",
+        "3afdc8bc63b50558d6e5770f5b799bb82455c2311183a2de43803f343a29d917",
         dev_only=True,
     ),
 )

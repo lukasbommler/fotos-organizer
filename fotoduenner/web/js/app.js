@@ -9,7 +9,11 @@ const crumb = document.getElementById("crumb");
 const statusText = document.getElementById("status-text");
 
 const LIVE_TILES = 96; // newest previews shown while analysing
-const STAGE_LABEL = { scan: "Ordner durchsuchen", analyze: "Bilder einlesen und prüfen" };
+const STAGE_LABEL = {
+  scan: "Ordner durchsuchen",
+  analyze: "Bilder einlesen und prüfen",
+  faces: "Gesichter in Serien genau prüfen",
+};
 
 const ui = {
   recursive: true,
@@ -163,7 +167,7 @@ function precheckScreen(info) {
   if (info.unreadable_dirs.length) warnings.push(`${fmt.num(info.unreadable_dirs.length)} Unterordner konnten nicht gelesen werden.`);
 
   const skipOffline = h("input", { type: "checkbox", id: "skip-offline", checked: true });
-  const done = info.pending === 0;
+  const done = info.pending === 0 && info.faces_pending === 0;
   const resume = info.cached > 0 && !done;
   const start = h("button.primary", {
     type: "button",
@@ -261,7 +265,7 @@ function progressScreen(info) {
       meter.setAttribute("aria-valuenow", String(Math.round(ratio * 100)));
       counter.textContent = p.total ? `${fmt.frame(p.done, p.total)} / ${fmt.num(p.total)}` : "–";
       percent.textContent = `${Math.floor(ratio * 100)} %`;
-      eta.textContent = p.eta_seconds ? `≈ ${fmt.duration(p.eta_seconds)}` : p.stage === "analyze" ? "wird berechnet …" : "–";
+      eta.textContent = p.eta_seconds ? `≈ ${fmt.duration(p.eta_seconds)}` : p.stage === "analyze" || p.stage === "faces" ? "wird berechnet …" : "–";
       current.textContent = p.current_file ?? " ";
     }
     for (const id of data.finished) {

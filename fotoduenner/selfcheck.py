@@ -10,12 +10,12 @@ import cv2
 import numpy as np
 import onnxruntime as ort
 
-from fotoduenner.paths import models_dir
+from fotoduenner.paths import asset_dir, models_dir
 
 log = logging.getLogger(__name__)
 
 RUNTIME_ONNX = (
-    "clip_vit_b32_vision_int8.onnx",
+    "clip_vit_b32_vision_fp16.onnx",
     "face_landmarks_detector.onnx",
     "face_blendshapes.onnx",
 )
@@ -51,6 +51,14 @@ def run_selfcheck(directory: Path | None = None) -> list[str]:
             problems.append(f"{AESTHETIC}: unexpected shape {head['weight'].shape}")
     except Exception as exc:
         problems.append(f"{AESTHETIC}: {exc}")
+    try:
+        from fotoduenner.pipeline.models import ZEROSHOT_FILE, load_zeroshot
+
+        text = load_zeroshot(asset_dir() / ZEROSHOT_FILE)
+        if text.label_embeds.shape[1] != 512 or len(text.labels) != len(text.label_embeds):
+            problems.append(f"{ZEROSHOT_FILE}: unexpected shape {text.label_embeds.shape}")
+    except Exception as exc:
+        problems.append(f"{ZEROSHOT_FILE}: {exc}")
     for problem in problems:
         log.error("selfcheck failed: %s", problem)
     return problems

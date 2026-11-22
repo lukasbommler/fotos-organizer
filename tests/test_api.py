@@ -115,9 +115,14 @@ def test_open_analyse_view_flow(client: TestClient, tmp_path: Path) -> None:
 
     info = client.get(f"/api/album/{album_id}/photo/{first['id']}/info").json()
     assert info["name"] == "a.jpg" and info["taken_at_source"] == "exif"
+    feats = info["features"]  # raw values for the debug view (key D)
+    assert feats["sharpness_peak"] > 0 and 0 <= feats["q_exposure"] <= 1
+    assert set(feats["zeroshot"]) == {"person_back", "screenshot", "document_sign", "blurry"}
+    assert feats["faces"] == [] and len(feats["phash"]) == 16
+    assert client.get(f"/api/album/{album_id}/photo/{broken['id']}/info").json()["features"] is None
 
     again = client.post("/api/album/open", json={"path": str(album)}, headers=POST).json()
-    assert again["pending"] == 0 and again["cached"] == 4
+    assert again["pending"] == 0 and again["cached"] == 4 and again["faces_pending"] == 0
 
     recent = client.get("/api/recent").json()
     assert recent[0]["name"] == "Kroatien 2025" and recent[0]["done"] == 4

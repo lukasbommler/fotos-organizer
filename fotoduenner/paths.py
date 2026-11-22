@@ -51,6 +51,14 @@ def web_dir() -> Path:
     return Path(__file__).resolve().parent / "web"
 
 
+def asset_dir() -> Path:
+    """Small derived data files shipped inside the package (e.g. zero-shot text embeddings)."""
+    frozen_base = getattr(sys, "_MEIPASS", None)
+    if frozen_base:
+        return Path(frozen_base) / "assets"
+    return Path(__file__).resolve().parent / "assets"
+
+
 def dev_models_dir() -> Path:
     """Model cache for development, outside Google Drive (docs/DECISIONS.md A8)."""
     base = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")

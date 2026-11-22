@@ -1,0 +1,1823 @@
+{
+ "items": [
+  {
+   "file": "faces_00.jpg",
+   "group": "faces",
+   "title": "A Group Of Friends (3415426794).jpg",
+   "labels": {
+    "faces": [],
+    "zs": []
+   }
+  },
+  {
+   "file": "faces_01.jpg",
+   "group": "faces",
+   "title": "A group of friends (8384763201).jpg",
+   "labels": {
+    "faces": [],
+    "zs": [],
+    "zs_skip": [
+     "person_back"
+    ]
+   }
+  },
+  {
+   "file": "faces_02.jpg",
+   "group": "faces",
+   "title": "Group of Friends (3296729078).jpg",
+   "labels": {
+    "faces": [],
+    "zs": [],
+    "zs_skip": [
+     "person_back"
+    ]
+   }
+  },
+  {
+   "file": "faces_04.jpg",
+   "group": "faces",
+   "title": "Group of friends (7609170572).jpg",
+   "labels": {
+    "faces": [],
+    "zs": [],
+    "zs_skip": [
+     "person_back"
+    ]
+   }
+  },
+  {
+   "file": "faces_05.jpg",
+   "group": "faces",
+   "title": "Group of friends posing for a photograph - 2010 (1501).jpg",
+   "labels": {
+    "faces": [
+     [
+      0.464,
+      0.368
+     ],
+     [
+      0.35,
+      0.366
+     ],
+     [
+      0.618,
+      0.351
+     ],
+     [
+      0.559,
+      0.312
+     ],
+     [
+      0.733,
+      0.304
+     ],
+     [
+      0.768,
+      0.321
+     ],
+     [
+      0.418,
+      0.36
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "faces_06.jpg",
+   "group": "faces",
+   "title": "Group of friends sitting inside the De Brabantse Aap bar, Spui, Amsterdam, Netherlands julesvernex2.jpg",
+   "labels": {
+    "faces": [
+     [
+      0.606,
+      0.823
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "faces_07.jpg",
+   "group": "faces",
+   "title": "Nevada with Friends, Group Photo, CBYX Berlin Day 2017 (33949760063).jpg",
+   "labels": {
+    "faces": [
+     [
+      0.399,
+      0.146
+     ],
+     [
+      0.485,
+      0.211
+     ],
+     [
+      0.461,
+      0.126
+     ],
+     [
+      0.597,
+      0.214
+     ]
+    ],
+    "eyes": [
+     [
+      0.399,
+      0.146,
+      "o"
+     ],
+     [
+      0.485,
+      0.211,
+      "o"
+     ],
+     [
+      0.461,
+      0.126,
+      "o"
+     ],
+     [
+      0.597,
+      0.214,
+      "o"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "faces_08.jpg",
+   "group": "faces",
+   "title": "SH The Fox Family (15165410130).jpg",
+   "labels": {
+    "faces": [
+     [
+      0.793,
+      0.265
+     ],
+     [
+      0.235,
+      0.449
+     ]
+    ],
+    "eyes": [
+     [
+      0.793,
+      0.265,
+      "o"
+     ],
+     [
+      0.235,
+      0.449,
+      "o"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "faces_09.jpg",
+   "group": "faces",
+   "title": "A group of tourists at Big Almaty Lake in Kazakhstan.JPG",
+   "labels": {
+    "faces": [],
+    "zs": [
+     "person_back"
+    ]
+   }
+  },
+  {
+   "file": "faces_10.jpg",
+   "group": "faces",
+   "title": "Group of Italian tourists in Shibuya.jpg",
+   "labels": {
+    "faces": [
+     [
+      0.432,
+      0.787
+     ]
+    ],
+    "zs": [],
+    "zs_skip": [
+     "person_back"
+    ]
+   }
+  },
+  {
+   "file": "faces_11.jpg",
+   "group": "faces",
+   "title": "Group of tourists in Stockholm.jpg",
+   "labels": {
+    "faces": [],
+    "zs": []
+   }
+  },
+  {
+   "file": "faces_12.jpg",
+   "group": "faces",
+   "title": "Watkins Glen State Park - 030 - Gorge Trail - tourists taking group selfie at the base of Frowning Cliff.jpg",
+   "labels": {
+    "faces": [],
+    "zs": []
+   }
+  },
+  {
+   "file": "faces_13.jpg",
+   "group": "faces",
+   "title": "Tour group at Castlerigg Stone Circle.jpg",
+   "labels": {
+    "faces": [],
+    "zs": []
+   }
+  },
+  {
+   "file": "faces_14.jpg",
+   "group": "faces",
+   "title": "A group photo of a Netball Team in Tamale.jpg",
+   "labels": {
+    "faces": [
+     [
+      0.19,
+      0.546
+     ],
+     [
+      0.359,
+      0.542
+     ],
+     [
+      0.892,
+      0.481
+     ],
+     [
+      0.052,
+      0.24
+     ]
+    ],
+    "missed": 1,
+    "zs": []
+   }
+  },
+  {
+   "file": "faces_15.jpg",
+   "group": "faces",
+   "title": "Abstract Wikipedia Team - Group photo, 2022-05-12.jpg",
+   "labels": {
+    "faces": [
+     [
+      0.739,
+      0.508
+     ],
+     [
+      0.437,
+      0.513
+     ],
+     [
+      0.18,
+      0.555
+     ],
+     [
+      0.502,
+      0.324
+     ],
+     [
+      0.618,
+      0.322
+     ],
+     [
+      0.341,
+      0.344
+     ],
+     [
+      0.211,
+      0.339
+     ],
+     [
+      0.728,
+      0.296
+     ],
+     [
+      0.836,
+      0.291
+     ]
+    ],
+    "eyes": [
+     [
+      0.739,
+      0.508,
+      "o"
+     ],
+     [
+      0.437,
+      0.513,
+      "o"
+     ],
+     [
+      0.18,
+      0.555,
+      "o"
+     ],
+     [
+      0.502,
+      0.324,
+      "o"
+     ],
+     [
+      0.618,
+      0.322,
+      "o"
+     ],
+     [
+      0.341,
+      0.344,
+      "o"
+     ],
+     [
+      0.211,
+      0.339,
+      "o"
+     ],
+     [
+      0.728,
+      0.296,
+      "o"
+     ],
+     [
+      0.836,
+      0.291,
+      "o"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "faces_16.jpg",
+   "group": "faces",
+   "title": "Wikimedia Free Culture Friends New York City, 2024-07-26 - group photo.jpg",
+   "labels": {
+    "faces": [
+     [
+      0.591,
+      0.482
+     ],
+     [
+      0.84,
+      0.328
+     ],
+     [
+      0.172,
+      0.311
+     ],
+     [
+      0.312,
+      0.513
+     ],
+     [
+      0.714,
+      0.303
+     ],
+     [
+      0.278,
+      0.273
+     ],
+     [
+      0.59,
+      0.365
+     ],
+     [
+      0.498,
+      0.331
+     ],
+     [
+      0.386,
+      0.294
+     ]
+    ],
+    "eyes": [
+     [
+      0.591,
+      0.482,
+      "o"
+     ],
+     [
+      0.84,
+      0.328,
+      "o"
+     ],
+     [
+      0.172,
+      0.311,
+      "o"
+     ],
+     [
+      0.312,
+      0.513,
+      "o"
+     ],
+     [
+      0.714,
+      0.303,
+      "o"
+     ],
+     [
+      0.278,
+      0.273,
+      "o"
+     ],
+     [
+      0.59,
+      0.365,
+      "o"
+     ],
+     [
+      0.498,
+      0.331,
+      "o"
+     ],
+     [
+      0.386,
+      0.294,
+      "o"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "faces_17.jpg",
+   "group": "faces",
+   "title": "Rådberg-Eikner Wedding group 2 2017.jpg",
+   "labels": {
+    "faces": [
+     [
+      0.902,
+      0.439
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "faces_18.jpg",
+   "group": "faces",
+   "title": "Wedding group photo Thelwall.jpg",
+   "labels": {
+    "faces": [
+     [
+      0.78,
+      0.303
+     ],
+     [
+      0.958,
+      0.321
+     ],
+     [
+      0.885,
+      0.348
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "faces_19.jpg",
+   "group": "faces",
+   "title": "Fit Family Field Day 140920-F-VE588-016.jpg",
+   "labels": {
+    "faces": [
+     [
+      0.629,
+      0.2
+     ],
+     [
+      0.359,
+      0.462
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "faces_20.jpg",
+   "group": "faces",
+   "title": "Hikers pose with Makaopuhi Crater behind them (43600293270).jpg",
+   "labels": {
+    "faces": [],
+    "zs": []
+   }
+  },
+  {
+   "file": "faces_21.jpg",
+   "group": "faces",
+   "title": "Laughing girl and smiling boy in Laos.jpg",
+   "labels": {
+    "faces": [
+     [
+      0.722,
+      0.362
+     ],
+     [
+      0.349,
+      0.364
+     ]
+    ],
+    "eyes": [
+     [
+      0.722,
+      0.362,
+      "o"
+     ],
+     [
+      0.349,
+      0.364,
+      "o"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "faces_22.jpg",
+   "group": "faces",
+   "title": "Shiny Happy Birthday Girl Smiling.jpg",
+   "labels": {
+    "faces": [
+     [
+      0.699,
+      0.381
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "faces_23.jpg",
+   "group": "faces",
+   "title": "2014 Friends Group Appreciation Dinner (15372415023).jpg",
+   "labels": {
+    "faces": [
+     [
+      0.209,
+      0.493
+     ],
+     [
+      0.308,
+      0.419
+     ],
+     [
+      0.79,
+      0.468
+     ],
+     [
+      0.679,
+      0.397
+     ],
+     [
+      0.63,
+      0.359
+     ],
+     [
+      0.44,
+      0.353
+     ],
+     [
+      0.393,
+      0.397
+     ]
+    ],
+    "eyes": [
+     [
+      0.209,
+      0.493,
+      "o"
+     ],
+     [
+      0.308,
+      0.419,
+      "o"
+     ],
+     [
+      0.79,
+      0.468,
+      "o"
+     ],
+     [
+      0.679,
+      0.397,
+      "o"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "faces_24.jpg",
+   "group": "faces",
+   "title": "Friends on a quiet beach (Unsplash).jpg",
+   "labels": {
+    "faces": [],
+    "zs": []
+   }
+  },
+  {
+   "file": "faces_25.jpg",
+   "group": "faces",
+   "title": "Kiss on the beach (Unsplash).jpg",
+   "labels": {
+    "faces": [],
+    "zs": [],
+    "zs_skip": [
+     "person_back"
+    ]
+   }
+  },
+  {
+   "file": "eyes_00.jpg",
+   "group": "eyes",
+   "title": "Caroline Veronez 2017 (Unsplash).jpg",
+   "labels": {
+    "eyes": [
+     [
+      0.431,
+      0.497,
+      "c"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_01.jpg",
+   "group": "eyes",
+   "title": "Closed Eyes (Unsplash).jpg",
+   "labels": {
+    "eyes": [
+     [
+      0.449,
+      0.243,
+      "c"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_02.jpg",
+   "group": "eyes",
+   "title": "007 Tourist woman in Norway enjoying late evening sun onboard ferry crossing Bindalsfjorden, Nordland, Norway.jpg",
+   "labels": {
+    "eyes": [
+     [
+      0.456,
+      0.451,
+      "c"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_03.jpg",
+   "group": "eyes",
+   "title": "Dancing with eyes closed.jpg",
+   "labels": {
+    "eyes": [
+     [
+      0.332,
+      0.493,
+      "c"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_04.jpg",
+   "group": "eyes",
+   "title": "Andy Moor thinking portrait.jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_05.jpg",
+   "group": "eyes",
+   "title": "Helena Blagne.jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_06.jpg",
+   "group": "eyes",
+   "title": "Human–canine friendship - girl hugging her dog tightly at golden hour in Laos.jpg",
+   "labels": {
+    "eyes": [
+     [
+      0.513,
+      0.23,
+      "c"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_07.jpg",
+   "group": "eyes",
+   "title": "Khairdeen, alias Pritam, relishing a mango at the dusk of his life 05.jpg",
+   "labels": {
+    "eyes": [
+     [
+      0.479,
+      0.342,
+      "c"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_08.jpg",
+   "group": "eyes",
+   "title": "Portrait de Merle Bardenoir.jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_09.jpg",
+   "group": "eyes",
+   "title": "Portrait de Tai WUANG.jpg",
+   "labels": {
+    "eyes": [
+     [
+      0.474,
+      0.342,
+      "c"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_10.jpg",
+   "group": "eyes",
+   "title": "Kamala Harris in the Blue Room - V20210810LJ-0615 (51540629020).jpg",
+   "labels": {
+    "eyes": [
+     [
+      0.305,
+      0.143,
+      "c"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_11.jpg",
+   "group": "eyes",
+   "title": "Dylan LeBlanc OBS 2025 04.jpg",
+   "labels": {
+    "eyes": [
+     [
+      0.377,
+      0.251,
+      "c"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_12.jpg",
+   "group": "eyes",
+   "title": "Dylan LeBlanc OBS 2025 11.jpg",
+   "labels": {
+    "eyes": [
+     [
+      0.43,
+      0.308,
+      "c"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_13.jpg",
+   "group": "eyes",
+   "title": "Dylan LeBlanc OBS 2025 18.jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_14.jpg",
+   "group": "eyes",
+   "title": "Haley Dreis @ NAMM Show 01 27 2024 (53835061298).jpg",
+   "labels": {
+    "eyes": [
+     [
+      0.515,
+      0.179,
+      "c"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_15.jpg",
+   "group": "eyes",
+   "title": "Depressed woman lying on bed with eyes closed in a cozy indoor setting during the day.jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_16.jpg",
+   "group": "eyes",
+   "title": "Cwo 20180719190820e.jpg",
+   "labels": {
+    "eyes": [
+     [
+      0.653,
+      0.289,
+      "c"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_17.jpg",
+   "group": "eyes",
+   "title": "U napustenom srednjevekovnom gradu 2.jpg",
+   "labels": {
+    "eyes": [
+     [
+      0.486,
+      0.262,
+      "c"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_18.jpg",
+   "group": "eyes",
+   "title": "Buddhist monk meditation.jpg",
+   "labels": {
+    "eyes": [
+     [
+      0.501,
+      0.376,
+      "c"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_19.jpg",
+   "group": "eyes",
+   "title": "SAKIKO in meditation. (49384331736).jpg",
+   "labels": {
+    "eyes": [
+     [
+      0.479,
+      0.762,
+      "c"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_20.jpg",
+   "group": "eyes",
+   "title": "Laughter by David Shankbone.jpg",
+   "labels": {
+    "eyes": [
+     [
+      0.545,
+      0.332,
+      "c"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_21.jpg",
+   "group": "eyes",
+   "title": "Christina Hendricks at a Night on the Town 2.jpg",
+   "labels": {
+    "eyes": [
+     [
+      0.509,
+      0.211,
+      "c"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_22.jpg",
+   "group": "eyes",
+   "title": "Ben Shneiderman at UNCC.jpg",
+   "labels": {
+    "eyes": [
+     [
+      0.37,
+      0.355,
+      "c"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_23.jpg",
+   "group": "eyes",
+   "title": "Toronto-falun-gong-8.jpg",
+   "labels": {
+    "eyes": [
+     [
+      0.648,
+      0.286,
+      "c"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_24.jpg",
+   "group": "eyes",
+   "title": "Toronto Falun Gong Exercises 7.jpg",
+   "labels": {
+    "eyes": [
+     [
+      0.653,
+      0.257,
+      "c"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_25.jpg",
+   "group": "eyes",
+   "title": "Allef Vinicius 2017-01-12 (Unsplash CiFNGNk6zxk).jpg",
+   "labels": {
+    "eyes": [
+     [
+      0.512,
+      0.32,
+      "c"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_26.jpg",
+   "group": "eyes",
+   "title": "Ashley S. (Unsplash).jpg",
+   "labels": {
+    "eyes": [
+     [
+      0.514,
+      0.446,
+      "c"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_27.jpg",
+   "group": "eyes",
+   "title": "At Peace In Nature (Unsplash).jpg",
+   "labels": {
+    "eyes": [
+     [
+      0.444,
+      0.395,
+      "c"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_28.jpg",
+   "group": "eyes",
+   "title": "Andre Hunter 2017-05-19 (Unsplash).jpg",
+   "labels": {
+    "eyes": [
+     [
+      0.474,
+      0.495,
+      "c"
+     ]
+    ],
+    "zs": []
+   }
+  },
+  {
+   "file": "eyes_29.jpg",
+   "group": "eyes",
+   "title": "Gandhi closed eyes.jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "back_00.jpg",
+   "group": "back",
+   "title": "Man looking at the boat (Unsplash).jpg",
+   "labels": {
+    "zs": [
+     "person_back"
+    ]
+   }
+  },
+  {
+   "file": "back_01.jpg",
+   "group": "back",
+   "title": "Looking off into the mountains (Unsplash).jpg",
+   "labels": {
+    "zs": [
+     "person_back"
+    ]
+   }
+  },
+  {
+   "file": "back_02.jpg",
+   "group": "back",
+   "title": "Gabriel enjoying the view from Globen (Skyview), Stockholm, Sweden julesvernex2.jpg",
+   "labels": {
+    "zs": [
+     "person_back"
+    ]
+   }
+  },
+  {
+   "file": "back_03.jpg",
+   "group": "back",
+   "title": "Gabriel looking at the ocean, Marriott Praia D'El Rey, Amoreira, Portugal julesvernex2.jpg",
+   "labels": {
+    "zs": [
+     "person_back"
+    ]
+   }
+  },
+  {
+   "file": "back_04.jpg",
+   "group": "back",
+   "title": "People looking at the Icarian coastline from a ferry, Icarian Sea, Greece julesvernex2.jpg",
+   "labels": {
+    "zs": [],
+    "zs_skip": [
+     "person_back"
+    ]
+   }
+  },
+  {
+   "file": "back_05.jpg",
+   "group": "back",
+   "title": "Boy looking through a fence at the Stockholm Central train station, Stockholm, Sweden julesvernex2.jpg",
+   "labels": {
+    "zs": [
+     "person_back"
+    ]
+   }
+  },
+  {
+   "file": "back_06.jpg",
+   "group": "back",
+   "title": "Hiker on a log (Unsplash r19nfvS3wY).jpg",
+   "labels": {
+    "zs": [],
+    "zs_skip": [
+     "person_back"
+    ]
+   }
+  },
+  {
+   "file": "back_07.jpg",
+   "group": "back",
+   "title": "Hiker on a steel bridge (Unsplash).jpg",
+   "labels": {
+    "zs": [
+     "person_back"
+    ]
+   }
+  },
+  {
+   "file": "back_08.jpg",
+   "group": "back",
+   "title": "Hiker with a large backpack (Unsplash).jpg",
+   "labels": {
+    "zs": [
+     "person_back"
+    ]
+   }
+  },
+  {
+   "file": "back_09.jpg",
+   "group": "back",
+   "title": "Winter Hikers (Unsplash).jpg",
+   "labels": {
+    "zs": [
+     "person_back"
+    ]
+   }
+  },
+  {
+   "file": "back_10.jpg",
+   "group": "back",
+   "title": "Rear view of hiker walking along an unpaved in Xuhai Guanyinbi Nature Reserve.jpg",
+   "labels": {
+    "zs": [],
+    "zs_skip": [
+     "person_back"
+    ]
+   }
+  },
+  {
+   "file": "back_11.jpg",
+   "group": "back",
+   "title": "Hiking in Lacoste (Unsplash).jpg",
+   "labels": {
+    "zs": [
+     "person_back"
+    ]
+   }
+  },
+  {
+   "file": "back_12.jpg",
+   "group": "back",
+   "title": "Children hiking in the forest.jpg",
+   "labels": {
+    "zs": [
+     "person_back"
+    ]
+   }
+  },
+  {
+   "file": "back_13.jpg",
+   "group": "back",
+   "title": "Hikers on Cabot Trail, Cape Breton, Nova Scotia, Canada.jpg",
+   "labels": {
+    "zs": [
+     "person_back"
+    ]
+   }
+  },
+  {
+   "file": "back_14.jpg",
+   "group": "back",
+   "title": "Two Dutch Wikimedians photographing two other Dutch Wikimedians on Robben Island.jpg",
+   "labels": {
+    "zs": [],
+    "zs_skip": [
+     "person_back"
+    ]
+   }
+  },
+  {
+   "file": "back_15.jpg",
+   "group": "back",
+   "title": "Man watching Cape Town sunset (Unsplash).jpg",
+   "labels": {
+    "zs": [],
+    "zs_skip": [
+     "person_back"
+    ]
+   }
+  },
+  {
+   "file": "back_16.jpg",
+   "group": "back",
+   "title": "Surfer looking at the ocean (Unsplash).jpg",
+   "labels": {
+    "zs": [],
+    "zs_skip": [
+     "person_back"
+    ]
+   }
+  },
+  {
+   "file": "back_17.jpg",
+   "group": "back",
+   "title": "Young woman photographing the sunset by the sea.jpg",
+   "labels": {
+    "zs": [
+     "person_back"
+    ]
+   }
+  },
+  {
+   "file": "back_18.jpg",
+   "group": "back",
+   "title": "Woman by ocean sunset (Unsplash).jpg",
+   "labels": {
+    "zs": [],
+    "zs_skip": [
+     "person_back"
+    ]
+   }
+  },
+  {
+   "file": "back_19.jpg",
+   "group": "back",
+   "title": "Photographing a mountain lake (Unsplash).jpg",
+   "labels": {
+    "zs": [
+     "person_back"
+    ]
+   }
+  },
+  {
+   "file": "back_20.jpg",
+   "group": "back",
+   "title": "Sitting over mountain lakes (Unsplash).jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "doc_00.jpg",
+   "group": "doc",
+   "title": "2017-11-24 Pizza menu Sandwich board, Restaurant Marinela, Rua do Município, Albufeira.JPG",
+   "labels": {
+    "zs": [
+     "document_sign"
+    ]
+   }
+  },
+  {
+   "file": "doc_01.jpg",
+   "group": "doc",
+   "title": "A black menu board from Kau Yee Hong Kong style restaurant.jpg",
+   "labels": {
+    "zs": [
+     "document_sign"
+    ]
+   }
+  },
+  {
+   "file": "doc_02.jpg",
+   "group": "doc",
+   "title": "Belle's Diner, French Market Place, New Orleans, 24 May 2016 - Menu board.jpg",
+   "labels": {
+    "zs": [
+     "document_sign"
+    ]
+   }
+  },
+  {
+   "file": "doc_03.jpg",
+   "group": "doc",
+   "title": "Billy Goat Tavern and Grill Menu Board, Original Location, 430 North Michigan Avenue, Chicago.jpg",
+   "labels": {
+    "zs": [
+     "document_sign"
+    ]
+   }
+  },
+  {
+   "file": "doc_04.jpg",
+   "group": "doc",
+   "title": "Chandler's Drive-In menu board, Thomasville, Georgia.jpg",
+   "labels": {
+    "zs": [
+     "document_sign"
+    ]
+   }
+  },
+  {
+   "file": "doc_05.jpg",
+   "group": "doc",
+   "title": "Menu for La Defensa Restaurant - NARA - 6341083.jpg",
+   "labels": {
+    "zs": [
+     "document_sign"
+    ]
+   }
+  },
+  {
+   "file": "doc_06.jpg",
+   "group": "doc",
+   "title": "Paper menus and white board menu in the hk style restaurants.jpg",
+   "labels": {
+    "zs": [
+     "document_sign"
+    ]
+   }
+  },
+  {
+   "file": "doc_07.jpg",
+   "group": "doc",
+   "title": "Heritage Trail information board - geograph.org.uk - 7657642.jpg",
+   "labels": {
+    "zs": [
+     "document_sign"
+    ]
+   }
+  },
+  {
+   "file": "doc_08.jpg",
+   "group": "doc",
+   "title": "Information board on Turquoise Way Trail, Jurien Bay, September 2023.jpg",
+   "labels": {
+    "zs": [
+     "document_sign"
+    ]
+   }
+  },
+  {
+   "file": "doc_09.jpg",
+   "group": "doc",
+   "title": "Rail Trail information board - geograph.org.uk - 7300547.jpg",
+   "labels": {
+    "zs": [
+     "document_sign"
+    ]
+   }
+  },
+  {
+   "file": "doc_10.jpg",
+   "group": "doc",
+   "title": "Carleton Trail Information Board - geograph.org.uk - 2849254.jpg",
+   "labels": {
+    "zs": [
+     "document_sign"
+    ]
+   }
+  },
+  {
+   "file": "doc_11.jpg",
+   "group": "doc",
+   "title": "Hel train timetable 2013 1.JPG",
+   "labels": {
+    "zs": [
+     "document_sign"
+    ]
+   }
+  },
+  {
+   "file": "doc_12.jpg",
+   "group": "doc",
+   "title": "Train timetable Albania 2025.jpg",
+   "labels": {
+    "zs": [
+     "document_sign"
+    ]
+   }
+  },
+  {
+   "file": "doc_13.jpg",
+   "group": "doc",
+   "title": "Train timetable of Maputo.jpg",
+   "labels": {
+    "zs": [
+     "document_sign"
+    ]
+   }
+  },
+  {
+   "file": "doc_14.jpg",
+   "group": "doc",
+   "title": "202506 Last train timetable in Kyoto-Kawaramachi Station.jpg",
+   "labels": {
+    "zs": [
+     "document_sign"
+    ]
+   }
+  },
+  {
+   "file": "doc_15.jpg",
+   "group": "doc",
+   "title": "Velká Kraš, jízdní řád.jpg",
+   "labels": {
+    "zs": [
+     "document_sign"
+    ]
+   }
+  },
+  {
+   "file": "doc_16.jpg",
+   "group": "doc",
+   "title": "Menu for the Plaza Hotel Restaurant - NARA - 6341094 (page 1).jpg",
+   "labels": {
+    "zs": [
+     "document_sign"
+    ]
+   }
+  },
+  {
+   "file": "screen_00.jpg",
+   "group": "screen",
+   "title": "Screenshot for discover feature on the Wikipedia Android app.jpg",
+   "labels": {
+    "zs": [
+     "screenshot"
+    ]
+   }
+  },
+  {
+   "file": "screen_01.jpg",
+   "group": "screen",
+   "title": "Screenshot of Ajapaik Android app main menu view.jpg",
+   "labels": {
+    "zs": [
+     "screenshot"
+    ]
+   }
+  },
+  {
+   "file": "screen_02.jpg",
+   "group": "screen",
+   "title": "Screenshot of Ajapaik Android app nearby view.jpg",
+   "labels": {
+    "zs": [
+     "screenshot"
+    ]
+   }
+  },
+  {
+   "file": "screen_03.jpg",
+   "group": "screen",
+   "title": "Screenshot of Ajapaik Android app profile view.jpg",
+   "labels": {
+    "zs": [
+     "screenshot"
+    ]
+   }
+  },
+  {
+   "file": "screen_04.jpg",
+   "group": "screen",
+   "title": "Screenshot of Ajapaik Android app main photo view.jpg",
+   "labels": {
+    "zs": [
+     "screenshot"
+    ]
+   }
+  },
+  {
+   "file": "screen_05.jpg",
+   "group": "screen",
+   "title": "Screenshot of Ajapaik Android app drafts view.jpg",
+   "labels": {
+    "zs": [
+     "screenshot"
+    ]
+   }
+  },
+  {
+   "file": "screen_06.jpg",
+   "group": "screen",
+   "title": "Customize the feed – Wikipedia Android app (some of the options).jpg",
+   "labels": {
+    "zs": [
+     "screenshot"
+    ]
+   }
+  },
+  {
+   "file": "screen_07.jpg",
+   "group": "screen",
+   "title": "Wikipedia Android App Top Read.jpg",
+   "labels": {
+    "zs": [
+     "screenshot"
+    ]
+   }
+  },
+  {
+   "file": "neg_00.jpg",
+   "group": "neg",
+   "title": "Beach by the pier (Unsplash).jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "neg_01.jpg",
+   "group": "neg",
+   "title": "Colorful beach huts on beach (Unsplash).jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "neg_02.jpg",
+   "group": "neg",
+   "title": "Lifeguard tower on a beach (Unsplash gqvh3l T6O0).jpg",
+   "labels": {
+    "zs": [],
+    "zs_skip": [
+     "document_sign"
+    ]
+   }
+  },
+  {
+   "file": "neg_03.jpg",
+   "group": "neg",
+   "title": "Paradise beach (Unsplash).jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "neg_04.jpg",
+   "group": "neg",
+   "title": "People enjoying Newport Beach (Unsplash).jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "neg_05.jpg",
+   "group": "neg",
+   "title": "Clear lake in snowy mountains (Unsplash).jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "neg_06.jpg",
+   "group": "neg",
+   "title": "Kayaks on a mountain lake (Unsplash).jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "neg_07.jpg",
+   "group": "neg",
+   "title": "Mountains and Lake in Bariloche (Unsplash).jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "neg_08.jpg",
+   "group": "neg",
+   "title": "Turquoise mountain lake (Unsplash).jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "neg_09.jpg",
+   "group": "neg",
+   "title": "Snow covered mountain peaks in Moraine Lake (Unsplash).jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "neg_10.jpg",
+   "group": "neg",
+   "title": "Bundesterrasse (Bern) - Vacation in a pleasant town (Unsplash).jpg",
+   "labels": {
+    "zs": [
+     "person_back"
+    ]
+   }
+  },
+  {
+   "file": "neg_11.jpg",
+   "group": "neg",
+   "title": "Krakow Old Town (Unsplash).jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "neg_12.jpg",
+   "group": "neg",
+   "title": "Ol City of Korcula (Unsplash).jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "neg_13.jpg",
+   "group": "neg",
+   "title": "Stone Town, Zanzibar Town, Tanzania (Unsplash).jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "neg_14.jpg",
+   "group": "neg",
+   "title": "Two old men in an ancient town in Andalusia, Spain (Unsplash).jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "neg_15.jpg",
+   "group": "neg",
+   "title": "Hilltop town by the sea (Unsplash).jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "neg_16.jpg",
+   "group": "neg",
+   "title": "An Indian Brunch (Unsplash).jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "neg_17.jpg",
+   "group": "neg",
+   "title": "Best Cheeseburger ever (Unsplash).jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "neg_18.jpg",
+   "group": "neg",
+   "title": "Gourmet Seafood (Unsplash).jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "neg_19.jpg",
+   "group": "neg",
+   "title": "Pancakes with Berries (Unsplash).jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "neg_20.jpg",
+   "group": "neg",
+   "title": "Fruit Platter (Unsplash).jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "neg_21.jpg",
+   "group": "neg",
+   "title": "Sunset over a sea in Flø (Unsplash).jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "neg_22.jpg",
+   "group": "neg",
+   "title": "Patras sunset jetty (Unsplash).jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "neg_23.jpg",
+   "group": "neg",
+   "title": "Desert mountain at sunset (Unsplash).jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "neg_24.jpg",
+   "group": "neg",
+   "title": "Sunset Lovers (Unsplash).jpg",
+   "labels": {
+    "zs": [],
+    "zs_skip": [
+     "person_back"
+    ]
+   }
+  },
+  {
+   "file": "neg_25.jpg",
+   "group": "neg",
+   "title": "Street bokeh (Unsplash).jpg",
+   "labels": {
+    "zs": [
+     "blurry"
+    ]
+   }
+  },
+  {
+   "file": "neg_26.jpg",
+   "group": "neg",
+   "title": "Penguins at Boulders Beach (Unsplash).jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "neg_27.jpg",
+   "group": "neg",
+   "title": "Two dogs playing on the beach (Unsplash).jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "neg_28.jpg",
+   "group": "neg",
+   "title": "Evening falls on a mountain town (Unsplash).jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "neg_29.jpg",
+   "group": "neg",
+   "title": "Quaint river town (Unsplash).jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "blurry_00.jpg",
+   "group": "blurry",
+   "title": "Blurry - Flickr - Il conte di Luna.jpg",
+   "labels": {
+    "zs": []
+   }
+  },
+  {
+   "file": "blurry_01.jpg",
+   "group": "blurry",
+   "title": "Blurry Space Needle in Sunset (49763415787).jpg",
+   "labels": {
+    "zs": [],
+    "zs_skip": [
+     "blurry"
+    ]
+   }
+  },
+  {
+   "file": "blurry_02.jpg",
+   "group": "blurry",
+   "title": "Blurry eye chart.jpg",
+   "labels": {
+    "zs": [
+     "blurry"
+    ],
+    "zs_skip": [
+     "document_sign"
+    ]
+   }
+  },
+  {
+   "file": "blurry_03.jpg",
+   "group": "blurry",
+   "title": "Day 4 Monday on the walk home from work. (32073401776).jpg",
+   "labels": {
+    "zs": [],
+    "zs_skip": [
+     "blurry"
+    ]
+   }
+  },
+  {
+   "file": "blurry_04.jpg",
+   "group": "blurry",
+   "title": "Walking around Alfama - Flickr - ftrc.jpg",
+   "labels": {
+    "zs": [],
+    "zs_skip": [
+     "blurry"
+    ]
+   }
+  },
+  {
+   "file": "blurry_05.jpg",
+   "group": "blurry",
+   "title": "Noche en Chiapa de Corzo. - panoramio.jpg",
+   "labels": {
+    "zs": [],
+    "zs_skip": [
+     "blurry"
+    ]
+   }
+  }
+ ]
+}

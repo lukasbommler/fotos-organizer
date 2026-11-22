@@ -134,6 +134,7 @@ def create_app(
             "status": row["status"],
             "error": row["error"],
             "companions": json.loads(row["companions"] or "[]"),
+            "features": state.photo_features(album_id, photo_id),
         }
 
     @app.post("/api/instance/focus")

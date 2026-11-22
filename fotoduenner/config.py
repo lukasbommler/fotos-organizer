@@ -8,18 +8,20 @@ from typing import Literal
 Mode = Literal["clean", "quota"]
 
 
+# Zero-shot labels, checked on the M3 test set (A24): "blurry" hits only 29 % of blurred photos
+# at 0.6 – unreliable, switched off (D13); sharpness ranks cover blur anyway.
 def _zs_enabled() -> dict[str, bool]:
-    return {"person_back": True, "screenshot": True, "document_sign": True, "blurry": True}
+    return {"person_back": True, "screenshot": True, "document_sign": True, "blurry": False}
 
 
 def _zs_threshold() -> dict[str, float]:
-    return {"person_back": 0.5, "screenshot": 0.6, "document_sign": 0.6, "blurry": 0.6}
+    return {"person_back": 0.70, "screenshot": 0.50, "document_sign": 0.65, "blurry": 0.6}
 
 
 @dataclass(frozen=True, slots=True)
 class Config:
-    # Bump to force recomputation of cached features.
-    algo_version: int = 1
+    # Bump to force recomputation of cached features. 2: features of M3 (quality, faces, CLIP).
+    algo_version: int = 2
 
     # Scanning (01 §3)
     include_subdirs: bool = True
@@ -34,8 +36,21 @@ class Config:
     thumb_large: int = 1600
     thumb_jpeg_quality: int = 85
 
+    # Exposure score q_exposure (03 §3.3)
+    exposure_clip_high_free: float = 0.02
+    exposure_clip_high_weight: float = 4.0
+    exposure_clip_low_free: float = 0.08
+    exposure_clip_low_weight: float = 2.0
+    # ASSUMPTION: 03 §3.3 names a penalty below 35 / above 225 without its size; it grows
+    # linearly and reaches 1 at mean 0 resp. 255.
+    exposure_mean_low: float = 35.0
+    exposure_mean_high: float = 225.0
+
     # Faces (03 §3.5)
-    face_score_threshold: float = 0.75
+    # M3 test set (A23): 0.75 on img_640 found 91 % of the faces > 3 %; 0.6 on 480 + 640 px
+    # (merged) finds 96 %. People photos still need conf >= people_min_conf (0.85).
+    face_score_threshold: float = 0.6
+    face_detect_edges: tuple[int, ...] = (480, 640)
     face_nms_threshold: float = 0.3
     face_top_k: int = 50
     face_min_size_rel: float = 0.015
@@ -43,6 +58,9 @@ class Config:
     people_min_conf: float = 0.85
     eyes_min_size_rel: float = 0.04
     eyes_min_presence: float = 0.5
+    # eyes_open >= this counts as "open" (03 §6 bonus at 0.6; M3 test set: best split, A23)
+    eyes_open_threshold: float = 0.6
+    face_second_pass: bool = True  # T6: native face sharpness for series members with faces
 
     # Series, level 1 (03 §5.1)
     phash_series_max: int = 8
@@ -101,12 +119,23 @@ class Config:
     target_keep_range: tuple[float, float] = (0.30, 0.90)
 
     # Analysis runtime (02 §5)
-    analysis_workers: int | None = None  # None = physical cores - 1 (at least 1)
+    analysis_workers: int | None = None  # None = physical cores - 1, capped by free RAM
+    # ASSUMPTION: peak RSS of one worker with all models (CLIP FP16 ≈ 0.5 GB, A25) plus a reserve
+    # for Windows, WebView2 and the main process; fewer workers on laptops with little free RAM.
+    worker_ram_mb: int = 800
+    ram_reserve_mb: int = 1500
     submit_ahead_per_worker: int = 2  # bounded queue: fast cancel, bounded memory
+    # T11/A25: CLIP runs as a separate batched stage in the main process (one model in RAM
+    # instead of one per worker, ~1.5x CLIP throughput with FP16). False = inside each worker.
+    clip_in_worker: bool = False
+    clip_batch: int = 16
+    clip_stage_threads: int | None = None  # None = number of workers
     db_batch_size: int = 50
-    # ASSUMPTION: CPU ms per photo for the pre-check estimate; M1 benchmark ~240 ms on one core,
-    # to be raised once M3 adds faces and CLIP (docs/BENCHMARKS.md).
-    estimate_ms_per_photo: float = 240.0
+    # ASSUMPTION: CPU ms per photo for the pre-check estimate (estimate = n * ms / workers):
+    # M3 benchmark 136 ms wall per photo with 3 workers incl. CLIP stage (docs/BENCHMARKS.md).
+    estimate_ms_per_photo: float = 420.0
+    # ASSUMPTION: full-resolution decode of a 24 MP JPEG + face crops (02 §5: 250–400 ms).
+    estimate_ms_second_pass: float = 350.0
     estimate_startup_s: float = 3.0
     few_photos_warning: int = 20
     eta_window: int = 50

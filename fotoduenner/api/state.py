@@ -13,7 +13,15 @@ from typing import Any, Literal
 
 from fotoduenner.config import DEFAULT, Config
 from fotoduenner.paths import albums_dir
-from fotoduenner.pipeline.runner import Progress, RunSummary, analyze_album, default_workers
+from fotoduenner.pipeline.quality import Quality, exposure_score
+from fotoduenner.pipeline.runner import (
+    Progress,
+    RunSummary,
+    analyze_album,
+    default_workers,
+    second_pass_jobs,
+)
+from fotoduenner.pipeline.zeroshot import active_labels
 from fotoduenner.scanner.discover import scan_album
 from fotoduenner.store.db import AlbumStore, connect
 from fotoduenner.winplatform import drive_kind
@@ -96,11 +104,15 @@ class AppState:
             self.sessions[store.album_id] = session
 
         workers = max(1, default_workers(cfg))
+        # second pass (T6) still open, e.g. after cancelling during it
+        faces_pending = len(second_pass_jobs(store, cfg)) if cfg.face_second_pass else 0
         estimate = 0.0
-        if report.pending:
-            estimate = (
-                report.pending * cfg.estimate_ms_per_photo / 1000 / workers + cfg.estimate_startup_s
+        if report.pending or faces_pending:
+            work_ms = (
+                report.pending * cfg.estimate_ms_per_photo
+                + faces_pending * cfg.estimate_ms_second_pass
             )
+            estimate = work_ms / 1000 / workers + cfg.estimate_startup_s
         return {
             "album_id": store.album_id,
             "name": store.root.name or str(store.root),
@@ -114,6 +126,7 @@ class AppState:
             "few": report.total < cfg.few_photos_warning,
             "cached": report.total - report.pending,
             "pending": report.pending,
+            "faces_pending": faces_pending,
             "estimate_seconds": round(estimate),
             "unreadable_dirs": scan.unreadable_dirs,
         }
@@ -228,6 +241,40 @@ class AppState:
         if row is None:
             raise ApiError(404, "Bild nicht gefunden.")
         return dict(row)
+
+    def photo_features(self, album_id: str, photo_id: int) -> dict[str, Any] | None:
+        """Raw analysis values for the debug view (key D); None before the analysis."""
+        session = self.session(album_id)
+        with contextlib.closing(session.store.connect()) as conn:
+            row = conn.execute("SELECT * FROM features WHERE photo_id=?", (photo_id,)).fetchone()
+        if row is None:
+            return None
+        quality = Quality(
+            row["sharpness_global"],
+            row["sharpness_peak"],
+            row["exposure_mean"],
+            row["contrast"],
+            row["clip_low"],
+            row["clip_high"],
+        )
+        return {
+            "sharpness_global": row["sharpness_global"],
+            "sharpness_peak": row["sharpness_peak"],
+            "exposure_mean": row["exposure_mean"],
+            "contrast": row["contrast"],
+            "clip_low": row["clip_low"],
+            "clip_high": row["clip_high"],
+            "q_exposure": exposure_score(quality, session.cfg),
+            "aesthetic": row["aesthetic"],
+            "phash": row["phash"].hex() if row["phash"] else None,
+            "zeroshot": json.loads(row["zeroshot"] or "{}"),
+            "zeroshot_active": sorted(
+                active_labels(json.loads(row["zeroshot"] or "{}"), session.cfg)
+            ),
+            "zeroshot_disabled": sorted(k for k, on in session.cfg.zs_enabled.items() if not on),
+            "faces": json.loads(row["faces"] or "[]"),
+            "faces_native": row["faces_native"],
+        }
 
     def recent(self) -> list[dict[str, Any]]:
         root = albums_dir(self.data_root)
