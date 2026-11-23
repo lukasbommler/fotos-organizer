@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -40,7 +40,8 @@ class SettingsRequest(BaseModel):
 
 
 class DecisionRequest(BaseModel):
-    photo_id: int
+    photo_id: int | None = None
+    photo_ids: list[int] | None = None  # group actions ("alle behalten", "zurücksetzen")
     manual: Literal["keep", "reject"] | None = None
 
 
@@ -124,7 +125,10 @@ def create_app(
 
     @app.post("/api/album/{album_id}/decision")
     def decision(album_id: str, body: DecisionRequest) -> dict[str, Any]:
-        return state.set_decision(album_id, body.photo_id, body.manual)
+        ids = list(body.photo_ids or []) + ([body.photo_id] if body.photo_id is not None else [])
+        if not ids:
+            raise ApiError(422, "Kein Bild angegeben.")
+        return state.set_decision(album_id, ids, body.manual)
 
     @app.get("/api/album/{album_id}/photo/{photo_id}/thumb")
     def thumb(album_id: str, photo_id: int, size: Literal["s", "l"] = "s") -> FileResponse:
@@ -134,6 +138,11 @@ def create_app(
         if not path.is_file():
             raise ApiError(404, "Vorschau noch nicht erstellt.")
         return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": THUMB_CACHE})
+
+    @app.get("/api/album/{album_id}/photo/{photo_id}/full")
+    def full(album_id: str, photo_id: int) -> Response:
+        data = state.full_image(album_id, photo_id)
+        return Response(data, media_type="image/jpeg", headers={"Cache-Control": THUMB_CACHE})
 
     @app.get("/api/album/{album_id}/photo/{photo_id}/info")
     def info(album_id: str, photo_id: int) -> dict[str, Any]:

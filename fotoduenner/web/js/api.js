@@ -38,6 +38,10 @@ export const api = {
   view: (id) => request("GET", `/api/album/${id}/view`),
   info: (id, photoId) => request("GET", `/api/album/${id}/photo/${photoId}/info`),
   events: (id) => new EventSource(`/api/album/${id}/events`),
+  decision: (id, photoIds, manual) =>
+    request("POST", `/api/album/${id}/decision`, { photo_ids: photoIds, manual }),
+  settings: (id, changes) => request("POST", `/api/album/${id}/settings`, changes),
+  fullUrl: (id, photo) => `/api/album/${id}/photo/${photo.id}/full?v=${photo.v ?? 0}`,
   thumbUrl: (id, photo, size = "s") =>
     `/api/album/${id}/photo/${photo.id}/thumb?size=${size}&v=${photo.v ?? 0}`,
 };

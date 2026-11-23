@@ -1,8 +1,8 @@
 // FotoDünner frontend: start → pre-check → analysis → contact sheet (04 §1).
 import { api, ApiError } from "./api.js";
-import { renderSheet, TILE_SIZES, tile } from "./grid.js";
+import { tile } from "./grid.js";
+import { mountReview } from "./review.js";
 import { cropMarks, fmt, h } from "./util.js";
-import { openViewer } from "./viewer.js";
 
 const main = document.getElementById("app");
 const crumb = document.getElementById("crumb");
@@ -17,10 +17,21 @@ const STAGE_LABEL = {
 
 const ui = {
   recursive: true,
-  tileSize: 1, // index into TILE_SIZES
-  sheet: null,
+  review: null,
   events: null,
 };
+
+const footerLeft = document.getElementById("footer-left");
+const footerRight = document.getElementById("footer-right");
+const footerDefault = [footerLeft.textContent, footerRight.textContent];
+const footerBar = footerLeft.parentElement;
+
+/** Review screen: sorted-out total left, apply buttons right; other screens: defaults. */
+function setFooter(left, right) {
+  footerBar.classList.toggle("applybar", Boolean(left));
+  footerLeft.replaceChildren(left ?? footerDefault[0]);
+  footerRight.replaceChildren(right ?? footerDefault[1]);
+}
 
 function setCrumb(text) {
   crumb.textContent = text ?? "";
@@ -32,8 +43,9 @@ function setStatus(text) {
 }
 
 function show(...nodes) {
-  ui.sheet?.destroy();
-  ui.sheet = null;
+  ui.review?.destroy();
+  ui.review = null;
+  setFooter(null, null);
   ui.events?.close();
   ui.events = null;
   main.className = "stage";
@@ -300,7 +312,7 @@ function cancelledScreen(info, progress) {
   );
 }
 
-// ── 1.4 Übersicht („Alle“, M2 ohne Entscheidungen) ───────────────────────────────
+// ── 1.4 Prüf-Übersicht ────────────────────────────────────────────────────────────
 
 async function reviewScreen(albumId) {
   setStatus("Übersicht wird geladen …");
@@ -313,52 +325,9 @@ async function reviewScreen(albumId) {
     showError(err, e);
     return;
   }
+  show();
   setCrumb(view.name);
-  const photos = view.photos;
-  const unreadable = photos.filter((p) => p.status === "error").length;
-  const pending = photos.filter((p) => p.status === "pending").length;
-
-  const sheet = h("div.sheet", { tabindex: "-1" });
-  const sizeButtons = TILE_SIZES.map((px, i) => h("button.seg", {
-    type: "button", "aria-pressed": String(i === ui.tileSize), title: `Kacheln ${px} px (Strg + Mausrad)`,
-    onclick: () => setSize(i),
-  }, ["S", "M", "L"][i]));
-
-  function setSize(i) {
-    ui.tileSize = Math.max(0, Math.min(TILE_SIZES.length - 1, i));
-    main.style.setProperty("--tile", `${TILE_SIZES[ui.tileSize]}px`);
-    sizeButtons.forEach((b, j) => b.setAttribute("aria-pressed", String(j === ui.tileSize)));
-  }
-
-  show(
-    h("div.toolbar", {},
-      h("div.tabs", { role: "tablist" },
-        h("button.tab", { type: "button", role: "tab", "aria-selected": "true" }, "Alle", h("span.tab-count", {}, fmt.num(photos.length)))),
-      h("div.toolbar-facts", {},
-        unreadable ? h("span.fact.warn", { title: "Werden nie automatisch aussortiert" }, `${fmt.num(unreadable)} nicht lesbar`) : null,
-        pending ? h("span.fact", {}, `${fmt.num(pending)} noch nicht analysiert`) : null),
-      h("div.segmented", { role: "group", "aria-label": "Kachelgröße" }, sizeButtons),
-      h("button.ghost", { type: "button", onclick: startScreen }, "Anderes Album")),
-    sheet,
-  );
-  main.className = "review";
-  setSize(ui.tileSize);
-  setStatus("Doppelklick oder Enter: Großansicht · Pfeiltasten: bewegen · Strg + Mausrad: Kachelgröße");
-
-  if (!photos.length) {
-    sheet.append(h("p.empty", {}, "Keine Bilder in diesem Album."));
-    return;
-  }
-  ui.sheet = renderSheet(sheet, albumId, photos, (index) => {
-    openViewer({ albumId, photos, index, onClose: (last) => ui.sheet?.focus(last) });
-  });
-  ui.sheet.focus(0);
-
-  sheet.addEventListener("wheel", (event) => {
-    if (!event.ctrlKey) return;
-    event.preventDefault();
-    setSize(ui.tileSize + (event.deltaY < 0 ? 1 : -1));
-  }, { passive: false });
+  ui.review = mountReview(main, view, { setStatus, setCrumb, setFooter, startScreen });
 }
 
 // ── boot ──────────────────────────────────────────────────────────────────────────

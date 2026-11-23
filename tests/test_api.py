@@ -195,6 +195,23 @@ def test_review_proposals_decisions_settings(client: TestClient, tmp_path: Path)
     # stored per album (A4): a new session sees the same settings and the manual decision
     client.post("/api/album/open", json={"path": str(album)}, headers=POST)
     client.post(url, json={"photo_id": orig_id, "manual": "reject"}, headers=POST)
-    again = client.get(f"/api/album/{album_id}/view").json()["review"]
+    again_view = client.get(f"/api/album/{album_id}/view").json()
+    again = again_view["review"]
     assert again["stats"]["mode"] == "quota" and again["stats"]["level"] == 4
     assert {d["id"]: d for d in again["decisions"]}[orig_id]["reason"] == "Von Ihnen aussortiert."
+
+    # group action: several photos at once
+    both = [orig_id, ids["b.jpg"]]
+    res = client.post(url, json={"photo_ids": both, "manual": "keep"}, headers=POST).json()
+    assert {c["id"] for c in res["changed"]} == set(both) and res["stats"]["reject_manual"] == 0
+    assert all(c["manual"] == "keep" and c["keep"] for c in res["changed"])
+    assert client.post(url, json={"manual": "keep"}, headers=POST).status_code == 422
+
+    full = client.get(f"/api/album/{album_id}/photo/{orig_id}/full")
+    assert full.status_code == 200 and full.headers["content-type"] == "image/jpeg"
+    from io import BytesIO
+
+    from PIL import Image
+
+    assert Image.open(BytesIO(full.content)).size == (640, 480)
+    assert next(p for p in again_view["photos"] if p["id"] == orig_id)["size"] > 0

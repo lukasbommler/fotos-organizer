@@ -22,6 +22,7 @@ from fotoduenner.pipeline.runner import (
     default_workers,
     second_pass_jobs,
 )
+from fotoduenner.pipeline.thumbs import full_jpeg
 from fotoduenner.pipeline.zeroshot import active_labels
 from fotoduenner.scanner.discover import scan_album
 from fotoduenner.store.db import AlbumStore, connect
@@ -214,7 +215,8 @@ class AppState:
         session = self.session(album_id)
         with contextlib.closing(session.store.connect()) as conn:
             rows = conn.execute(
-                "SELECT id, rel_path, width, height, status, rating, taken_at, mtime_ns, error"
+                "SELECT id, rel_path, width, height, size, status, rating, taken_at, mtime_ns,"
+                " error"
                 " FROM photos WHERE present=1"
                 " ORDER BY taken_at IS NULL, taken_at, rel_path COLLATE NOCASE"
             ).fetchall()
@@ -226,6 +228,7 @@ class AppState:
                 "rel_path": r["rel_path"],
                 "w": r["width"],
                 "h": r["height"],
+                "size": r["size"],
                 "status": r["status"],
                 "rating": r["rating"],
                 "taken_at": r["taken_at"],
@@ -258,11 +261,24 @@ class AppState:
     def update_settings(self, album_id: str, changes: dict[str, Any]) -> dict[str, Any]:
         return self._review(self.session(album_id)).update_settings(changes)
 
-    def set_decision(self, album_id: str, photo_id: int, manual: str | None) -> dict[str, Any]:
+    def set_decision(
+        self, album_id: str, photo_ids: list[int], manual: str | None
+    ) -> dict[str, Any]:
         try:
-            return self._review(self.session(album_id)).set_manual(photo_id, manual)
+            return self._review(self.session(album_id)).set_manual(photo_ids, manual)
         except KeyError:
             raise ApiError(404, "Bild nicht gefunden oder noch nicht analysiert.") from None
+
+    def full_image(self, album_id: str, photo_id: int) -> bytes:
+        """The original, upright, as JPEG for the 100 % zoom (04 §2). Read-only."""
+        row = self.photo_row(album_id, photo_id)
+        if row["status"] != "done":
+            raise ApiError(404, "Bild nicht lesbar.")
+        path = self.session(album_id).store.abs_path(row["rel_path"])
+        try:
+            return full_jpeg(path, self.cfg)
+        except OSError as exc:
+            raise ApiError(404, f"Original nicht lesbar: {exc}") from None
 
     def photo_row(self, album_id: str, photo_id: int) -> dict[str, Any]:
         session = self.session(album_id)

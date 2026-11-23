@@ -10,7 +10,6 @@ import contextlib
 import logging
 import threading
 import time
-from pathlib import PurePosixPath
 from typing import Any
 
 import numpy as np
@@ -117,7 +116,7 @@ class Review:
         if reason.ref is None:
             return None
         if reason.code == "duplicate":
-            return PurePosixPath(engine.inp.rel_paths[reason.ref]).name
+            return engine.inp.rel_paths[reason.ref].rsplit("/", 1)[-1]  # POSIX rel path
         s = int(layout.series_of[reason.ref])
         if s >= 0:
             members = layout.series[s].members.tolist()
@@ -213,6 +212,12 @@ class Review:
                 "protected": bool(engine.inp.ratings[i] >= 1),
                 "value": round(float(scores.value[i]), 3),
                 "sharp": round(float(scores.q_sharp[i]), 3),
+                "exposure": round(float(scores.q_exp[i]), 3),
+                "eyes_known": any(
+                    engine.inp.facts.faces[i][k].get("eyes_open") is not None
+                    for k in scores.main_faces[i]
+                ),
+                "sequence": bool(engine.in_sequence[i]),
             }
             for i in range(engine.n)
         }
@@ -247,7 +252,9 @@ class Review:
             }
 
     def _diff(self, with_structure: bool) -> dict[str, Any]:
+        start = time.perf_counter()
         engine, layout, settings, d, manual = self._compute()
+        computed = time.perf_counter()
         ids = engine.inp.ids
         changed = []
         current: dict[int, tuple[Any, ...]] = {}
@@ -261,6 +268,12 @@ class Review:
         out: dict[str, Any] = {"changed": changed, "stats": self._stats(d, settings)}
         if with_structure:
             out.update(self._structure(layout))
+        log.debug(
+            "recalculated in %.0f ms (+%.0f ms diff), %d changed",
+            (computed - start) * 1000,
+            (time.perf_counter() - computed) * 1000,
+            len(changed),
+        )
         return out
 
     def update_settings(self, changes: dict[str, Any]) -> dict[str, Any]:
@@ -280,11 +293,13 @@ class Review:
             after = self._settings()
             return self._diff(with_structure=after.level != before.level)
 
-    def set_manual(self, photo_id: int, manual: str | None) -> dict[str, Any]:
+    def set_manual(self, photo_ids: list[int], manual: str | None) -> dict[str, Any]:
         with self.lock:
             self._ensure()
-            if photo_id not in self.index:
-                raise KeyError(photo_id)
+            missing = [pid for pid in photo_ids if pid not in self.index]
+            if missing:
+                raise KeyError(missing[0])
             with contextlib.closing(self.store.connect()) as conn:
-                self.store.set_manual(conn, photo_id, manual if manual in MANUAL else None)
+                for pid in photo_ids:
+                    self.store.set_manual(conn, pid, manual if manual in MANUAL else None)
             return self._diff(with_structure=False)

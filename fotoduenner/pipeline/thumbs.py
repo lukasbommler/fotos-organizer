@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import io
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 
 from fotoduenner.config import Config
 
@@ -56,3 +57,17 @@ def load_gray(path: Path, long_edge: int) -> np.ndarray | None:
             return np.asarray(gray, dtype=np.float32)
     except OSError:
         return None
+
+
+def full_jpeg(path: Path, cfg: Config) -> bytes:
+    """Full-resolution original, EXIF orientation applied, re-encoded in memory (never saved)."""
+    Image.MAX_IMAGE_PIXELS = cfg.max_image_pixels
+    with Image.open(path) as img:
+        icc = img.info.get("icc_profile")
+        upright = ImageOps.exif_transpose(img).convert("RGB")
+    out = io.BytesIO()
+    kwargs: dict[str, object] = {"quality": cfg.full_jpeg_quality}
+    if icc:
+        kwargs["icc_profile"] = icc
+    upright.save(out, "JPEG", **kwargs)
+    return out.getvalue()

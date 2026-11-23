@@ -1,6 +1,9 @@
-// Large view overlay (04 §2): 1600-px preview, arrows, film strip, details panel.
+// Large view overlay (04 §2): 1600-px preview, arrows, film strip, details, decision panel,
+// 100 % zoom on the original (Z or click), debug view (D).
 import { api } from "./api.js";
-import { cropMarks, fmt, h } from "./util.js";
+import { circleMark, strikeMark } from "./marks.js";
+import { stateWord } from "./tiles.js";
+import { cropMarks, fill, fmt, h } from "./util.js";
 
 const STRIP_RADIUS = 8; // frames shown on each side in the film strip
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -82,16 +85,44 @@ function describeRating(rating) {
   return `${"★".repeat(rating)}  geschützt`;
 }
 
-export function openViewer({ albumId, photos, index, onClose }) {
+/** Measurements in words (04 §2): album-relative, no raw numbers. */
+function words(fact, features) {
+  if (!fact) return [];
+  const out = [];
+  const s = fact.sharp;
+  out.push(["Schärfe", s >= 0.75 ? "sehr gut" : s >= 0.5 ? "gut" : s >= 0.2 ? "mittel" : "schwach"]);
+  if (fact.faces > 0 || fact.people) {
+    out.push(["Augen", fact.eyes_closed ? "geschlossen" : fact.eyes_known ? "offen" : "nicht erkennbar"]);
+  }
+  const e = fact.exposure;
+  const bright = features ? features.exposure_mean > 128 : null;
+  const dir = bright === null ? "auffällig" : bright ? "zu hell" : "zu dunkel";
+  out.push(["Belichtung", e >= 0.85 ? "in Ordnung" : e >= 0.5 ? `etwas ${dir}` : `stark ${dir}`]);
+  if (fact.people) out.push(["Personen", fact.faces ? String(fact.faces) : "ja (von hinten)"]);
+  if (fact.sequence) out.push(["Folge", "Belichtungsreihe / Panorama – bleibt vollständig"]);
+  return out;
+}
+
+/**
+ * Open the overlay. `photos` = list of photo rows to step through, `store` (optional) =
+ * ReviewStore for decisions; without it the view is read-only (analysis still running).
+ */
+export function openViewer({ albumId, photos, index, onClose, store = null }) {
   let current = index;
   let infoToken = 0;
+  let zoomed = false;
   const previous = document.activeElement;
 
   const img = h("img.viewer-img", { alt: "" });
   const loading = h("span.viewer-loading", { "aria-hidden": "true" });
   const overlay = h("div.debug-overlay", { "aria-hidden": "true" });
-  const stage = h("div.viewer-stage", {}, h("div.viewer-frame", {}, img, overlay, loading, ...cropMarks()));
+  const marks = h("span.viewer-marks", { "aria-hidden": "true" });
+  const frame = h("div.viewer-frame", {}, img, marks, overlay, loading, ...cropMarks());
+  const zoomImg = h("img.zoom-img", { alt: "", draggable: "false" });
+  const zoomBox = h("div.zoom", { hidden: true, tabindex: "-1" }, zoomImg);
+  const stage = h("div.viewer-stage", {}, frame, zoomBox);
   const strip = h("div.strip", { role: "list", "aria-label": "Filmstreifen" });
+  const decision = h("section.verdict", { "aria-live": "polite" });
   const details = h("dl.details");
   const debug = h("section.debug", { "aria-label": "Messwerte" });
   const counter = h("span.viewer-counter");
@@ -100,13 +131,14 @@ export function openViewer({ albumId, photos, index, onClose }) {
   const prevBtn = h("button.nav.prev", { type: "button", "aria-label": "Vorheriges Bild (Pfeil links)", onclick: () => show(current - 1) }, "‹");
   const nextBtn = h("button.nav.next", { type: "button", "aria-label": "Nächstes Bild (Pfeil rechts)", onclick: () => show(current + 1) }, "›");
   const closeBtn = h("button.ghost.viewer-close", { type: "button", onclick: close }, "Schließen", h("kbd", {}, "Esc"));
+  const zoomBtn = h("button.ghost.viewer-zoom", { type: "button", onclick: () => toggleZoom() }, "100 %", h("kbd", {}, "Z"));
   const debugBtn = h("button.ghost.viewer-debug", { type: "button", onclick: () => toggleDebug() }, "Messwerte", h("kbd", {}, "D"));
 
   const root = h(
     "div.viewer",
     { role: "dialog", "aria-modal": "true", "aria-label": "Großansicht" },
-    h("header.viewer-bar", {}, counter, title, debugBtn, closeBtn),
-    h("div.viewer-body", {}, prevBtn, stage, nextBtn, h("aside.viewer-side", {}, details, debug)),
+    h("header.viewer-bar", {}, counter, title, zoomBtn, debugBtn, closeBtn),
+    h("div.viewer-body", {}, prevBtn, stage, nextBtn, h("aside.viewer-side", {}, decision, details, debug)),
     strip,
   );
 
@@ -120,7 +152,7 @@ export function openViewer({ albumId, photos, index, onClose }) {
     root.classList.toggle("is-debug", debugOn);
     debugBtn.setAttribute("aria-pressed", String(debugOn));
     debug.hidden = !debugOn;
-    overlay.hidden = !debugOn;
+    overlay.hidden = !debugOn || zoomed;
     if (!debugOn) return;
     debug.replaceChildren(...debugPanel(lastFeatures));
     overlay.replaceChildren(...(lastFeatures ? faceOverlay(lastFeatures.faces) : []));
@@ -130,6 +162,39 @@ export function openViewer({ albumId, photos, index, onClose }) {
     debugOn = !debugOn;
     sessionStorage.setItem("fd-debug", debugOn ? "1" : "0");
     renderDebug();
+  }
+
+  function renderDecision() {
+    const photo = photos[current];
+    if (!store || !photo) { decision.hidden = true; return; }
+    const d = store.decision(photo.id);
+    decision.hidden = false;
+    root.classList.toggle("is-reject", !d.keep);
+    marks.replaceChildren(...(d.unanalysed ? [] : [d.keep ? circleMark(photo.id) : strikeMark(photo.id)]));
+    const ref = d.ref ? store.byId.get(d.ref) : null;
+    const pairs = words(store.fact(photo.id), lastFeatures);
+    fill(decision, 
+      h(`p.verdict-state${d.keep ? ".is-keep" : ".is-reject"}${d.review ? ".is-review" : ""}`, {},
+        h("span.verdict-glyph", { "aria-hidden": "true" }), stateWord(d)[0].toUpperCase() + stateWord(d).slice(1),
+        d.manual ? h("span.verdict-manual", {}, "· von Ihnen") : null),
+      d.reason ? h("p.verdict-reason", {}, d.reason) : null,
+      ref ? h("button.link.verdict-ref", { type: "button", onclick: () => jumpTo(ref.id) },
+        `Bezugsbild ${fmt.frame(ref.n, store.photos.length)} ansehen`) : null,
+      pairs.length ? h("dl.words", {}, ...pairs.flatMap(([k, v]) => [h("dt", {}, k), h("dd", {}, v)])) : null,
+      d.unanalysed ? null : h("div.verdict-actions", {},
+        h(`button.ghost.small${d.keep ? ".is-on" : ""}`, { type: "button", onclick: () => store.setKeep([photo.id], true) }, "Behalten", h("kbd", {}, "K")),
+        h(`button.ghost.small${!d.keep ? ".is-on" : ""}`, { type: "button", onclick: () => store.setKeep([photo.id], false) }, "Aussortieren", h("kbd", {}, "X")),
+        d.manual ? h("button.link", { type: "button", onclick: () => store.setKeep([photo.id], null) }, "Vorschlag wiederherstellen") : null),
+    );
+  }
+
+  function jumpTo(id) {
+    const i = photos.findIndex((p) => p.id === id);
+    if (i >= 0) show(i);
+    else if (store) {
+      photos = [...photos, store.byId.get(id)];
+      show(photos.length - 1);
+    }
   }
 
   async function loadInfo(photo) {
@@ -156,6 +221,7 @@ export function openViewer({ albumId, photos, index, onClose }) {
       );
       lastFeatures = info.features;
       renderDebug();
+      renderDecision();
     } catch (err) {
       if (token === infoToken) details.replaceChildren(...row("Fehler", err.message));
     }
@@ -167,8 +233,9 @@ export function openViewer({ albumId, photos, index, onClose }) {
     const frames = [];
     for (let i = from; i <= to; i++) {
       const p = photos[i];
+      const rejected = store ? !store.decision(p.id).keep : false;
       frames.push(
-        h("button.strip-frame", {
+        h(`button.strip-frame${rejected ? ".is-reject" : ""}`, {
           type: "button",
           role: "listitem",
           "aria-current": i === current ? "true" : null,
@@ -176,20 +243,71 @@ export function openViewer({ albumId, photos, index, onClose }) {
           onclick: () => show(i),
         },
         p.status === "done" ? h("img", { src: api.thumbUrl(albumId, p), alt: "", decoding: "async" }) : h("span.tile-empty", {}, "–"),
-        h("span.frame-no", {}, fmt.frame(p.n, photos.length))),
+        h("span.frame-no", {}, fmt.frame(p.n, store?.photos.length ?? photos.length))),
       );
     }
     strip.replaceChildren(...frames);
   }
 
+  // ── 100 % zoom: the original, scrolled to the clicked point ───────────────────────
+  function toggleZoom(event) {
+    const photo = photos[current];
+    if (!photo || photo.status !== "done") return;
+    zoomed = !zoomed;
+    root.classList.toggle("is-zoomed", zoomed);
+    zoomBtn.setAttribute("aria-pressed", String(zoomed));
+    frame.hidden = zoomed;
+    zoomBox.hidden = !zoomed;
+    renderDebug();
+    if (!zoomed) { zoomImg.removeAttribute("src"); return; }
+    let fx = 0.5;
+    let fy = 0.5;
+    if (event) {
+      const r = img.getBoundingClientRect();
+      fx = Math.min(1, Math.max(0, (event.clientX - r.left) / r.width));
+      fy = Math.min(1, Math.max(0, (event.clientY - r.top) / r.height));
+    }
+    root.classList.add("is-loading");
+    zoomImg.onload = () => {
+      root.classList.remove("is-loading");
+      zoomBox.scrollLeft = fx * zoomImg.naturalWidth - zoomBox.clientWidth / 2;
+      zoomBox.scrollTop = fy * zoomImg.naturalHeight - zoomBox.clientHeight / 2;
+      zoomBox.focus({ preventScroll: true });
+    };
+    zoomImg.onerror = () => root.classList.remove("is-loading");
+    zoomImg.src = api.fullUrl(albumId, photo);
+  }
+
+  // drag to pan in the zoom
+  let drag = null;
+  zoomBox.addEventListener("pointerdown", (e) => {
+    drag = { x: e.clientX, y: e.clientY, l: zoomBox.scrollLeft, t: zoomBox.scrollTop, moved: false };
+    zoomBox.setPointerCapture(e.pointerId);
+  });
+  zoomBox.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x;
+    const dy = e.clientY - drag.y;
+    if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
+    zoomBox.scrollLeft = drag.l - dx;
+    zoomBox.scrollTop = drag.t - dy;
+  });
+  zoomBox.addEventListener("pointerup", () => {
+    if (drag && !drag.moved) toggleZoom(); // a plain click leaves the zoom
+    drag = null;
+  });
+  img.addEventListener("click", (e) => toggleZoom(e));
+
   function show(i) {
     if (i < 0 || i >= photos.length) return;
+    if (zoomed) toggleZoom();
     current = i;
     const photo = photos[i];
-    counter.textContent = `${fmt.frame(photo.n, photos.length)} / ${fmt.frame(photos.length, photos.length)}`;
-    title.textContent = photo.name;
+    counter.textContent = `${i + 1} / ${photos.length}`;
+    title.textContent = `${fmt.frame(photo.n, store?.photos.length ?? photos.length)} · ${photo.name}`;
     prevBtn.disabled = i === 0;
     nextBtn.disabled = i === photos.length - 1;
+    zoomBtn.disabled = photo.status !== "done";
     root.classList.add("is-loading");
     if (photo.status === "done") {
       img.hidden = false;
@@ -201,8 +319,8 @@ export function openViewer({ albumId, photos, index, onClose }) {
     }
     stage.classList.toggle("is-error", photo.status === "error");
     renderStrip();
+    renderDecision();
     loadInfo(photo);
-    // warm the cache for the neighbours
     for (const n of [i + 1, i - 1]) {
       const p = photos[n];
       if (p?.status === "done") new Image().src = api.thumbUrl(albumId, p, "l");
@@ -212,15 +330,41 @@ export function openViewer({ albumId, photos, index, onClose }) {
   img.addEventListener("load", () => root.classList.remove("is-loading"));
   img.addEventListener("error", () => root.classList.remove("is-loading"));
 
+  const unsubscribe = store?.subscribe((event) => {
+    if (event.type !== "decisions") return;
+    renderDecision();
+    renderStrip();
+  });
+
+  function decide(keep) {
+    const photo = photos[current];
+    if (!store || !photo) return;
+    if (keep === "toggle") store.toggle(photo.id);
+    else store.setKeep([photo.id], keep);
+  }
+
   function onKey(event) {
+    if (event.ctrlKey && (event.key === "z" || event.key === "Z") && store) {
+      event.preventDefault();
+      event.stopPropagation();
+      store.undo();
+      return;
+    }
     const actions = {
       ArrowRight: () => show(current + 1),
       ArrowLeft: () => show(current - 1),
       Home: () => show(0),
       End: () => show(photos.length - 1),
-      Escape: close,
+      Escape: () => (zoomed ? toggleZoom() : close()),
       d: toggleDebug,
       D: toggleDebug,
+      z: () => toggleZoom(),
+      Z: () => toggleZoom(),
+      k: () => decide(true),
+      K: () => decide(true),
+      x: () => decide(false),
+      X: () => decide(false),
+      " ": () => decide("toggle"),
     };
     const action = actions[event.key];
     if (action && !(event.ctrlKey || event.altKey || event.metaKey)) {
@@ -232,11 +376,12 @@ export function openViewer({ albumId, photos, index, onClose }) {
 
   function close() {
     document.removeEventListener("keydown", onKey, true);
+    unsubscribe?.();
     root.classList.add("is-closing");
     const done = () => root.remove();
     root.addEventListener("animationend", done, { once: true });
     setTimeout(done, 250);
-    if (onClose) onClose(current); // the caller restores focus to the photo last viewed
+    if (onClose) onClose(photos[current]?.id);
     else previous?.focus?.({ preventScroll: true });
   }
 

@@ -1,10 +1,10 @@
-// Contact sheet ("Alle"): day sections, lazy previews, roving keyboard focus (04 §1.4, §4).
+// Contact sheet: titled sections of tiles, lazy previews, roving keyboard focus (04 §1.4, §4).
 import { api } from "./api.js";
 import { fmt, h } from "./util.js";
 
 export const TILE_SIZES = [120, 160, 240];
 
-/** One tile. Decisions (circle / strike) arrive in M5; M2 shows status only. */
+/** Plain tile without decision (live grid while analysing). */
 export function tile(albumId, photo, total) {
   const unreadable = photo.status === "error";
   const ready = photo.status === "done";
@@ -19,71 +19,68 @@ export function tile(albumId, photo, total) {
     },
     h("span.frame-no", {}, fmt.frame(photo.n, total)),
     ready
-      ? h("img", {
-          src: api.thumbUrl(albumId, photo),
-          alt: "",
-          loading: "lazy",
-          decoding: "async",
-          draggable: "false",
-        })
+      ? h("img", { src: api.thumbUrl(albumId, photo), alt: "", loading: "lazy", decoding: "async", draggable: "false" })
       : h("span.tile-empty", {}, unreadable ? "Nicht lesbar" : "…"),
     photo.rating > 0 ? h("span.rating", { title: `${photo.rating} Sterne – geschützt` }, "★") : null,
-    h("span.tile-name", {}, photo.name),
   );
   if (unreadable) el.classList.add("is-error");
   return el;
 }
 
-function dayKey(t) {
-  return t ? Math.floor(t / 86400) : "none";
+const dayKey = (t) => (t ? Math.floor(t / 86400) : "none");
+
+/** Sections by capture day for a list of photos (already in capture order). */
+export function daySections(photos) {
+  const sections = [];
+  let last = null;
+  for (const p of photos) {
+    const key = dayKey(p.taken_at);
+    if (key !== last) {
+      last = key;
+      sections.push({ title: fmt.day(p.taken_at), ids: [] });
+    }
+    sections.at(-1).ids.push(p.id);
+  }
+  return sections;
 }
 
 /**
- * Render the sheet into `container`. Returns {focus(index), destroy()}.
- * `onOpen(index)` opens the detail view.
+ * Render `sections` ([{title, note?, ids}]) into `container`; `makeTile(id)` returns an element
+ * with `.tile` inside (or the tile itself). Returns {focus(index), current, tiles, destroy()}.
+ * `onOpen(index)` opens the detail view (Enter; double clicks are handled by the caller).
  */
-export function renderSheet(container, albumId, photos, onOpen) {
+export function renderSheet(container, sections, makeTile, onOpen) {
   container.replaceChildren();
-  const total = photos.length;
-  const tiles = [];
-  const sections = []; // {start, len}
-  const sectionOf = [];
-  const counts = new Map();
-  for (const p of photos) counts.set(dayKey(p.taken_at), (counts.get(dayKey(p.taken_at)) ?? 0) + 1);
-  let section = null;
-  let lastKey = null;
-  photos.forEach((photo, index) => {
-    const key = dayKey(photo.taken_at);
-    if (key !== lastKey) {
-      lastKey = key;
-      const count = counts.get(key);
-      sections.push({ start: index, len: count });
-      const grid = h("div.sheet-grid", { role: "list" });
-      section = h(
-        "section.day",
-        {},
-        h("header.day-head", {},
-          h("span.day-date", {}, fmt.day(photo.taken_at)),
-          h("span.day-rule", { "aria-hidden": "true" }),
-          h("span.day-count", {}, `${fmt.num(count)} Bilder`)),
-        grid,
-      );
-      section.grid = grid;
-      container.append(section);
+  const tiles = []; // focusable .tile elements in visual order
+  const ranges = [];
+  for (const sec of sections) {
+    if (!sec.ids.length) continue;
+    const grid = h("div.sheet-grid", { role: "list" });
+    const start = tiles.length;
+    for (const id of sec.ids) {
+      const el = makeTile(id);
+      const t = el.classList.contains("tile") ? el : el.querySelector(".tile");
+      t.dataset.index = String(tiles.length);
+      el.setAttribute("role", "listitem");
+      grid.append(el);
+      tiles.push(t);
     }
-    const el = tile(albumId, photo, total);
-    el.dataset.index = String(index);
-    el.setAttribute("role", "listitem");
-    section.grid.append(el);
-    tiles.push(el);
-    sectionOf.push(sections.length - 1);
-  });
+    ranges.push({ start, len: tiles.length - start });
+    container.append(h("section.day", {},
+      h("header.day-head", {},
+        h("span.day-date", {}, sec.title),
+        h("span.day-rule", { "aria-hidden": "true" }),
+        h("span.day-count", {}, sec.note ?? `${fmt.num(sec.ids.length)} Bilder`)),
+      grid));
+  }
+  const rangeOf = [];
+  ranges.forEach((r, s) => { for (let i = 0; i < r.len; i++) rangeOf.push(s); });
 
   let current = -1;
   function focus(index) {
     if (!tiles.length) return;
     const next = Math.max(0, Math.min(tiles.length - 1, index));
-    if (current >= 0) tiles[current].tabIndex = -1;
+    if (current >= 0 && tiles[current]) tiles[current].tabIndex = -1;
     current = next;
     tiles[current].tabIndex = 0;
     tiles[current].focus({ preventScroll: true });
@@ -91,27 +88,27 @@ export function renderSheet(container, albumId, photos, onOpen) {
   }
 
   function columns() {
-    const grid = tiles[current]?.parentElement;
+    const grid = tiles[current]?.closest(".sheet-grid");
     if (!grid) return 1;
     return getComputedStyle(grid).gridTemplateColumns.split(" ").length || 1;
   }
 
-  /** Up/down within the visual grid; crosses into the neighbouring day keeping the column. */
+  /** Up/down within the visual grid; crosses into the neighbouring section keeping the column. */
   function vertical(step) {
     const cols = columns();
-    const s = sectionOf[current];
-    const { start, len } = sections[s];
+    const s = rangeOf[current];
+    const { start, len } = ranges[s];
     const pos = current - start;
     const row = Math.floor(pos / cols);
     const col = pos % cols;
     const lastRow = Math.floor((len - 1) / cols);
     if (step > 0) {
       if (row < lastRow) return focus(Math.min(current + cols, start + len - 1));
-      const next = sections[s + 1];
+      const next = ranges[s + 1];
       if (next) focus(next.start + Math.min(col, next.len - 1));
     } else {
       if (row > 0) return focus(current - cols);
-      const prev = sections[s - 1];
+      const prev = ranges[s - 1];
       if (!prev) return;
       const rowStart = prev.start + Math.floor((prev.len - 1) / cols) * cols;
       focus(Math.min(rowStart + col, prev.start + prev.len - 1));
@@ -119,7 +116,7 @@ export function renderSheet(container, albumId, photos, onOpen) {
   }
 
   function onKey(event) {
-    if (current < 0) return;
+    if (current < 0 || event.ctrlKey || event.altKey || event.metaKey) return;
     const page = Math.max(1, columns() * 3);
     const keys = {
       ArrowRight: () => focus(current + 1),
@@ -141,28 +138,21 @@ export function renderSheet(container, albumId, photos, onOpen) {
 
   function onClick(event) {
     const el = event.target.closest(".tile");
-    if (!el) return;
-    focus(Number(el.dataset.index));
-  }
-
-  function onDblClick(event) {
-    const el = event.target.closest(".tile");
-    if (el) onOpen(Number(el.dataset.index));
+    if (el?.dataset.index) focus(Number(el.dataset.index));
   }
 
   container.addEventListener("keydown", onKey);
   container.addEventListener("click", onClick);
-  container.addEventListener("dblclick", onDblClick);
   if (tiles.length) tiles[0].tabIndex = 0;
   current = tiles.length ? 0 : -1;
 
   return {
     focus,
+    tiles,
     get current() { return current; },
     destroy() {
       container.removeEventListener("keydown", onKey);
       container.removeEventListener("click", onClick);
-      container.removeEventListener("dblclick", onDblClick);
     },
   };
 }

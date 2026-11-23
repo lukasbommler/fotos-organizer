@@ -26,6 +26,12 @@ export function h(spec, attrs = {}, ...children) {
   return el;
 }
 
+/** Replace the children of `el`, skipping null/false entries (replaceChildren would print "null"). */
+export function fill(el, ...children) {
+  el.replaceChildren(...children.flat().filter((c) => c !== null && c !== undefined && c !== false));
+  return el;
+}
+
 /** Four corner crop marks (D16), placed by CSS just outside the parent. */
 export function cropMarks() {
   return ["tl", "tr", "bl", "br"].map((c) => h(`span.crop.${c}`, { "aria-hidden": "true" }));

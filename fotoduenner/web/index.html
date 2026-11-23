@@ -7,19 +7,21 @@
   <link rel="preload" href="/static/fonts/IBMPlexSans-Regular-Latin1.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/static/fonts/IBMPlexMono-Regular-Latin1.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/review.css">
 </head>
 <body>
   <header class="bar">
     <span class="brand"><span class="wordmark">FOTODÜNNER</span><span id="crumb" class="crumb" hidden></span></span>
+    <span id="tally" class="tally-head" hidden></span>
     <span class="readout"><span id="version">v–</span><span class="sep">│</span>OFFLINE</span>
   </header>
 
   <main id="app" class="stage"></main>
 
   <footer class="bar status">
-    <span>127.0.0.1</span>
+    <span id="footer-left">127.0.0.1</span>
     <span id="status-text" class="status-text" aria-live="polite"></span>
-    <span>Ihre Fotos verlassen diesen Rechner nicht</span>
+    <span id="footer-right">Ihre Fotos verlassen diesen Rechner nicht</span>
   </footer>
 
   <script type="module" src="/static/js/app.js"></script>

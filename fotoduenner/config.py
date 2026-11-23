@@ -35,6 +35,7 @@ class Config:
     thumb_small: int = 320
     thumb_large: int = 1600
     thumb_jpeg_quality: int = 85
+    full_jpeg_quality: int = 92  # 100 % zoom: original re-encoded in memory (04 §2)
 
     # Exposure score q_exposure (03 §3.3)
     exposure_clip_high_free: float = 0.02

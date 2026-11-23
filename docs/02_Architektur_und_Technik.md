@@ -113,7 +113,7 @@ FotoDuenner/
 │   │   ├── security.py         # Token → Cookie, Header- und Host-Prüfung (T12)
 │   │   ├── state.py            # geöffnete Alben, laufende Analyse
 │   │   └── review.py           # Prüf-Übersicht: Vorschläge, Einstellungen, Klicks → Diff (A30)
-│   └── web/                    # index.html, styles.css, js/ (ES-Module), fonts/ (OFL), mockup/
+│   └── web/                    # index.html, styles.css, review.css, js/ (app, review, store, bundles, tiles, grid, viewer, compare, marks), fonts/ (OFL), mockup/
 └── tests/
     ├── fixtures/               # Generator + kleine CC0-Testbilder (siehe 05)
     └── test_*.py

@@ -130,10 +130,10 @@ Dialog „Übernehmen“:
 | GET | `/api/album/{id}/events` | SSE Fortschritt |
 | GET | `/api/album/{id}/view` | alle Bilder + `review`: Gruppen, Entscheidungen, Begründungen, Statistik (A30; Reiter/Filter im Frontend) |
 | POST | `/api/album/{id}/settings` | Modus, Zielquote, Gruppierungsstärke, Optionen → Diff |
-| POST | `/api/album/{id}/decision` | `{photo_id, manual: keep|reject|null}` → Diff |
+| POST | `/api/album/{id}/decision` | `{photo_id | photo_ids, manual: keep|reject|null}` → Diff (mehrere Bilder für Gruppen-Aktionen) |
 | POST | `/api/album/{id}/rethin` | „Erneut ausdünnen“ eines übernommenen Albums |
 | GET | `/api/album/{id}/photo/{pid}/thumb?size=s|l&v=…` | Vorschau (Foto-IDs gelten je Album, A18) |
-| GET | `/api/album/{id}/photo/{pid}/full` | Original (für 100 %-Zoom, M5) |
+| GET | `/api/album/{id}/photo/{pid}/full` | Original aufrecht als JPEG (100 %-Zoom, A31) |
 | GET | `/api/album/{id}/photo/{pid}/info` | Details für Seitenleiste |
 | GET | `/api/recent` | „Zuletzt geöffnet“ |
 | POST | `/api/instance/focus` | zweiter Programmstart holt das Fenster nach vorn (A3) |
