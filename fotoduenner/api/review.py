@@ -18,7 +18,7 @@ from fotoduenner.config import Config
 from fotoduenner.grouping.sequences import Shift, phase_shift
 from fotoduenner.pipeline.thumbs import load_gray, thumb_paths
 from fotoduenner.selection.engine import Engine, input_from_rows
-from fotoduenner.selection.modes import Decisions, Layout, Settings
+from fotoduenner.selection.modes import Decisions, Layout, Settings, hold
 from fotoduenner.selection.reasons import Reason, text
 from fotoduenner.store.db import AlbumStore
 
@@ -101,6 +101,17 @@ class Review:
             low_singles=_bool(raw.get("low_singles"), False),
         )
 
+    def _flags(self) -> dict[str, Any]:
+        """Album status after "Übernehmen" (T2), kept in the settings table."""
+        with contextlib.closing(self.store.connect()) as conn:
+            raw = self.store.get_settings(conn)
+        count = raw.get("count_before", "")
+        return {
+            "applied": raw.get("applied") == "1",
+            "hold": raw.get("hold") == "1",
+            "count_before": int(count) if count.isdigit() else None,
+        }
+
     def _manual(self) -> tuple[dict[int, str], dict[int, str]]:
         """Manual decisions by photo id and by engine index."""
         with contextlib.closing(self.store.connect()) as conn:
@@ -156,6 +167,7 @@ class Review:
 
     def _stats(self, d: Decisions, settings: Settings) -> dict[str, Any]:
         stats: dict[str, Any] = dict(d.stats)
+        stats.update(self._flags())
         stats["total"] += self.others
         stats["keep"] += self.others
         stats["unanalysed"] = self.others
@@ -236,6 +248,8 @@ class Review:
         settings = self._settings()
         _, manual = self._manual()
         layout = engine.layout(settings.level)
+        if self._flags()["hold"]:
+            return engine, layout, settings, hold(engine.n, manual), manual
         return engine, layout, settings, engine.decide(settings, manual), manual
 
     def full(self) -> dict[str, Any]:
@@ -275,6 +289,19 @@ class Review:
             len(changed),
         )
         return out
+
+    def rejected(self) -> tuple[list[int], dict[str, Any]]:
+        """Photo ids "Übernehmen" would move now, with the statistics of that state."""
+        with self.lock:
+            engine, _, settings, d, _ = self._compute()
+            ids = [int(engine.inp.ids[i]) for i in np.flatnonzero(~d.keep)]
+            return ids, self._stats(d, settings)
+
+    def rethin(self) -> dict[str, Any]:
+        """ "Erneut ausdünnen" (T2): proposals again, for the photos left in the album."""
+        with contextlib.closing(self.store.connect()) as conn:
+            self.store.put_settings(conn, {"hold": "0"})
+        return self.full()
 
     def update_settings(self, changes: dict[str, Any]) -> dict[str, Any]:
         with self.lock:

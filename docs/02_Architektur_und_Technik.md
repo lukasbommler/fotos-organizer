@@ -101,8 +101,9 @@ FotoDuenner/
 │   │   ├── reasons.py          # deutsche Begründungstexte
 │   │   └── engine.py           # baut alles einmal je Album auf, Regler = nur neu entscheiden
 │   ├── apply/
-│   │   ├── mover.py            # Verschieben mit Journal
-│   │   └── undo.py
+│   │   ├── mover.py            # Verschieben mit Journal, „Erneut versuchen“, Status
+│   │   ├── undo.py             # Rückgängig, Absturz-Reparatur, Import der Protokoll-Kopie
+│   │   └── protocol.py         # _Aussortiert\_FotoDuenner_Protokoll.json (T4)
 │   ├── store/
 │   │   ├── db.py               # Schema, Migrationen
 │   │   └── cache.py            # Vorschau-Dateien
@@ -181,11 +182,20 @@ decisions(
 )
 journal(
   id INTEGER PRIMARY KEY, batch_id TEXT, created_at REAL,
-  src TEXT, dst TEXT, state TEXT  -- 'planned' | 'moved' | 'reverted' | 'failed'
+  src TEXT, dst TEXT,            -- relativ zum Album, Trenner '/'
+  state TEXT,                    -- 'planned' | 'moved' | 'reverted' | 'failed' | 'cancelled' | 'missing'
+  photo_id INTEGER, error TEXT,  -- Meldung für den Nutzer
+  restored TEXT                  -- Rückgängig: tatsächlicher Name, falls der alte belegt war
+)
+batches(
+  batch_id TEXT PRIMARY KEY, created_at REAL,
+  state TEXT,                    -- 'running' | 'applied' | 'undoing' | 'reverted' | 'empty'
+  count_before INTEGER           -- Bilder im Album vor dem Vorgang (T2)
 )
 settings(key TEXT PRIMARY KEY, value TEXT)
   -- mode ('clean' | 'quota'), Zielquote, Gruppierungsstärke, Optionen,
-  -- applied ('0' | '1') + count_before (Status "übernommen", T2)
+  -- applied ('0' | '1') + count_before (Status "übernommen", T2),
+  -- hold ('1': alle verbliebenen Bilder behalten, bis "Erneut ausdünnen", A32)
 ```
 
 Gruppen, Sequenzen und automatische Entscheidungen werden **nicht** persistiert, sondern bei jedem Laden/Reglerwechsel aus `features` neu berechnet (dauert < 300 ms). Persistiert werden nur Merkmale, manuelle Entscheidungen, Einstellungen und Journal.

@@ -38,6 +38,7 @@ html, body { margin: 0; height: 100%; }
 body {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr); /* never wider than the window (1366 px laptops) */
   background-color: var(--graphite-0);
   /* static 24 px hairline grid, like a cutting mat */
   background-image:
@@ -69,7 +70,7 @@ body {
   white-space: nowrap;
 }
 .bar.status { border-top: 1px solid var(--hairline); border-bottom: 0; letter-spacing: 0.06em; }
-.status-text { flex: 1; overflow: hidden; text-overflow: ellipsis; text-align: center; color: var(--paper-faint); }
+.status-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: center; color: var(--paper-faint); }
 .brand { display: flex; align-items: center; min-width: 0; }
 .wordmark { color: var(--paper); font-weight: 500; letter-spacing: 0.28em; }
 .crumb { overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.06em; color: var(--paper); }

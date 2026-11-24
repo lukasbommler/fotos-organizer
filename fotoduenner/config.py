@@ -137,6 +137,9 @@ class Config:
     target_keep_default: float = 0.50
     target_keep_range: tuple[float, float] = (0.30, 0.90)
 
+    # Übernehmen / Rückgängig (02 §6): a taken name gets " (2)", " (3)" … up to this number
+    name_suffix_limit: int = 999
+
     # Analysis runtime (02 §5)
     analysis_workers: int | None = None  # None = physical cores - 1, capped by free RAM
     # ASSUMPTION: peak RSS of one worker with all models (CLIP FP16 ≈ 0.5 GB, A25) plus a reserve

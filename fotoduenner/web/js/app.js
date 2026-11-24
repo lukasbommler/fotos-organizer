@@ -1,6 +1,7 @@
 // FotoDünner frontend: start → pre-check → analysis → contact sheet (04 §1).
 import { api, ApiError } from "./api.js";
 import { tile } from "./grid.js";
+import { undoFlow } from "./dialogs.js";
 import { mountReview } from "./review.js";
 import { cropMarks, fmt, h } from "./util.js";
 
@@ -140,7 +141,7 @@ async function startScreen() {
         h("span.recent-name", {}, item.name),
         h("span.recent-path", {}, item.path),
         h("span.recent-count", {}, `${fmt.num(item.photos)} Bilder`),
-        h("span.recent-state", {}, item.done >= item.photos ? "analysiert"
+        h("span.recent-state", {}, item.applied ? "übernommen" : item.done >= item.photos ? "analysiert"
           : `${fmt.num(item.done)} von ${fmt.num(item.photos)} analysiert`))))),
     );
   } catch {
@@ -178,6 +179,15 @@ function precheckScreen(info) {
   if (info.few && info.photos > 0) warnings.push(`Nur ${fmt.num(info.photos)} Bilder – FotoDünner lohnt sich vor allem bei großen Alben.`);
   if (info.unreadable_dirs.length) warnings.push(`${fmt.num(info.unreadable_dirs.length)} Unterordner konnten nicht gelesen werden.`);
 
+  const last = info.apply?.last;
+  const applied = last
+    ? h("div.applied-note", {},
+      h("p", {}, h("span.mark", { "aria-hidden": "true" }, "✓"),
+        `Dieses Album wurde am ${fmt.when(last.created_at)} ausgedünnt: ${fmt.num(last.photos)} Bilder liegen in `,
+        h("code", {}, "_Aussortiert"), "."),
+      h("button.ghost.small", { type: "button", onclick: () => undoFlow(info.album_id, last, () => openAlbum(info.path, err)) },
+        "Rückgängig machen"))
+    : null;
   const skipOffline = h("input", { type: "checkbox", id: "skip-offline", checked: true });
   const done = info.pending === 0 && info.faces_pending === 0;
   const resume = info.cached > 0 && !done;
@@ -204,6 +214,7 @@ function precheckScreen(info) {
         readout("Ignoriert", fmt.num(info.ignored), "Andere Formate, Videos usw. – werden nie verschoben"),
         readout("Schon analysiert", fmt.num(info.cached)),
         readout("Geschätzte Dauer", done ? "sofort" : `≈ ${fmt.duration(info.estimate_seconds)}`)),
+      applied,
       warnings.length
         ? h("ul.warnings", {}, warnings.map((w) => h("li", {}, h("span.mark", { "aria-hidden": "true" }, "!"), w)))
         : null,
@@ -327,7 +338,8 @@ async function reviewScreen(albumId) {
   }
   show();
   setCrumb(view.name);
-  ui.review = mountReview(main, view, { setStatus, setCrumb, setFooter, startScreen });
+  ui.review = mountReview(main, view, { setStatus, setCrumb, setFooter, startScreen,
+    reload: () => reviewScreen(albumId) });
 }
 
 // ── boot ──────────────────────────────────────────────────────────────────────────

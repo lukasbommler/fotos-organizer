@@ -215,3 +215,70 @@ def test_review_proposals_decisions_settings(client: TestClient, tmp_path: Path)
 
     assert Image.open(BytesIO(full.content)).size == (640, 480)
     assert next(p for p in again_view["photos"] if p["id"] == orig_id)["size"] > 0
+
+
+def _wait_job(client: TestClient, album_id: str) -> dict:
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        status = client.get(f"/api/album/{album_id}/apply/status").json()
+        if status["job"] and status["job"]["state"] != "running":
+            return status
+        time.sleep(0.05)
+    raise AssertionError("job did not finish")
+
+
+def test_apply_hold_rethin_and_undo(client: TestClient, tmp_path: Path) -> None:
+    album = tmp_path / "Album"
+    make_jpeg(album / "a.jpg", seed=1, taken="2025:08:01 11:00:00")
+    make_jpeg(album / "b.jpg", seed=2, taken="2025:08:01 12:00:00")
+    (album / "Kopie").mkdir()
+    (album / "Kopie" / "a.jpg").write_bytes((album / "a.jpg").read_bytes())
+    (album / "Kopie" / "a.xmp").write_text("<x/>", encoding="utf-8")
+    album_id = client.post("/api/album/open", json={"path": str(album)}, headers=POST).json()[
+        "album_id"
+    ]
+    client.post(f"/api/album/{album_id}/analyze", headers=POST)
+    view = _wait_done(client, album_id)
+    assert view["apply"]["applied"] is False and view["apply"]["last"] is None
+    base = f"/api/album/{album_id}"
+
+    pre = client.post(f"{base}/apply/preview", headers=POST).json()
+    assert pre["photos"] == 1 and pre["files"] == 2 and pre["by_reason"]["duplicate"] == 1
+    assert pre["blocking"] == [] and pre["count_before"] == 3 and pre["bytes"] > 0
+    wrong = client.post(f"{base}/apply", json={"photo_ids": [12345]}, headers=POST)
+    assert wrong.status_code == 409 and "geändert" in wrong.json()["detail"]
+    started = client.post(f"{base}/apply", json={"photo_ids": pre["photo_ids"]}, headers=POST)
+    assert started.status_code == 200
+    status = _wait_job(client, album_id)
+    assert status["job"]["state"] == "done" and status["job"]["report"]["photos"] == 1
+    assert status["job"]["report"]["files"] == 2
+    assert (album / "_Aussortiert" / "Kopie" / "a.xmp").is_file()
+
+    # T2: the album is "übernommen", everything left is kept – also after reopening
+    view = client.get(f"{base}/view").json()
+    assert [p["rel_path"] for p in view["photos"]] == ["a.jpg", "b.jpg"]
+    stats = view["review"]["stats"]
+    assert stats["applied"] and stats["hold"] and stats["count_before"] == 3
+    assert stats["keep"] == stats["total"] == 2
+    assert view["apply"]["last"]["photos"] == 1
+    client.post(f"{base}/settings", json={"mode": "quota", "keep_target": 0.3}, headers=POST)
+    assert client.get(f"{base}/view").json()["review"]["stats"]["keep"] == 2
+    again = client.post("/api/album/open", json={"path": str(album)}, headers=POST).json()
+    assert again["apply"]["applied"] and again["photos"] == 2
+    assert client.get("/api/recent").json()[0]["applied"] is True
+    assert client.post(f"{base}/open-folder", headers=POST).status_code == 501
+
+    rethin = client.post(f"{base}/rethin", headers=POST).json()
+    assert rethin["stats"]["hold"] is False and rethin["stats"]["applied"] is True
+    client.post(f"{base}/settings", json={"mode": "clean"}, headers=POST)
+
+    assert client.post(f"{base}/undo", json={}, headers=POST).status_code == 200
+    status = _wait_job(client, album_id)
+    assert status["job"]["state"] == "done" and status["job"]["report"]["photos"] == 1
+    assert not (album / "_Aussortiert").exists()
+    view = client.get(f"{base}/view").json()
+    assert len(view["photos"]) == 3 and view["apply"]["applied"] is False
+    states = {d["id"]: d for d in view["review"]["decisions"]}
+    copy_id = next(p["id"] for p in view["photos"] if p["rel_path"] == "Kopie/a.jpg")
+    assert states[copy_id]["keep"] is False  # the proposal is back as before
+    assert client.post(f"{base}/undo", headers=POST).status_code == 409

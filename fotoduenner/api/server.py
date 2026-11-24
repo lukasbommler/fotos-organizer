@@ -45,6 +45,14 @@ class DecisionRequest(BaseModel):
     manual: Literal["keep", "reject"] | None = None
 
 
+class ApplyRequest(BaseModel):
+    photo_ids: list[int]  # exactly the photos the confirmation dialog showed
+
+
+class BatchRequest(BaseModel):
+    batch_id: str | None = None  # None = the latest batch
+
+
 def create_app(
     state: AppState | None = None,
     token: str | None = None,
@@ -129,6 +137,37 @@ def create_app(
         if not ids:
             raise ApiError(422, "Kein Bild angegeben.")
         return state.set_decision(album_id, ids, body.manual)
+
+    @app.post("/api/album/{album_id}/rethin")
+    def rethin(album_id: str) -> dict[str, Any]:
+        return state.rethin(album_id)
+
+    @app.post("/api/album/{album_id}/apply/preview")
+    def apply_preview(album_id: str) -> dict[str, Any]:
+        return state.apply_preview(album_id)
+
+    @app.post("/api/album/{album_id}/apply")
+    def apply(album_id: str, body: ApplyRequest) -> dict[str, Any]:
+        return state.start_apply(album_id, body.photo_ids)
+
+    @app.post("/api/album/{album_id}/apply/retry")
+    def apply_retry(album_id: str, body: BatchRequest) -> dict[str, Any]:
+        if not body.batch_id:
+            raise ApiError(422, "Kein Vorgang angegeben.")
+        return state.start_retry(album_id, body.batch_id)
+
+    @app.get("/api/album/{album_id}/apply/status")
+    def apply_status(album_id: str) -> dict[str, Any]:
+        return state.job_status(album_id)
+
+    @app.post("/api/album/{album_id}/undo")
+    def undo(album_id: str, body: BatchRequest | None = None) -> dict[str, Any]:
+        return state.start_undo(album_id, body.batch_id if body else None)
+
+    @app.post("/api/album/{album_id}/open-folder")
+    def open_folder(album_id: str) -> dict[str, bool]:
+        state.open_reject_folder(album_id)
+        return {"ok": True}
 
     @app.get("/api/album/{album_id}/photo/{photo_id}/thumb")
     def thumb(album_id: str, photo_id: int, size: Literal["s", "l"] = "s") -> FileResponse:

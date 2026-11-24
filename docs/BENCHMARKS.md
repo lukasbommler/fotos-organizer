@@ -55,3 +55,17 @@ Stufen-Zeiten = CPU-Zeit je Bild innerhalb eines Workers (Mittelwert); „faces�
 | manueller Klick | 31 ms | 31 ms | 16 ms |
 
 **Einordnung M4:** Abnahme „Neuberechnung 2.000 Bilder < 300 ms“ erfüllt – am teuersten ist eine noch nicht berechnete Gruppierungsstufe (187 ms). Das Modell aufzubauen lag zuerst bei 1,65 s; 1,2 s davon kosteten die Knotenabstände über Paar-Kopien der Embeddings, jetzt ein Matrixprodukt (460 ms). In (b) sind nur 120 Bilder verschieden, das Clustering ist dort kleiner; Entscheidungen, JSON und Klicks laufen über alle 2.000 Bilder.
+
+### 2026-11-24 09:50 – M6 (Übernehmen und Rückgängig), v0.1.0
+
+- CPU: AMD Ryzen 7 PRO 4750U (8 Kerne / 16 Threads), SSD, `scripts/bench_apply.py` (2.000 Bilder + 400 `.xmp`-Sidecars in 8 Unterordnern)
+
+| Vorgang | Zeit |
+|---|---|
+| Planen (Journal + Protokoll-Kopie, Namensprüfung) | 0,19 s |
+| Verschieben 2.400 Dateien | 4,2 s (1,75 ms je Datei inkl. eigenem Commit) |
+| Absturz-Prüfung beim Öffnen eines Albums | 39 ms |
+| Rückgängig 2.400 Dateien | 4,2 s |
+| Album neu einlesen danach | 0,9 s |
+
+**Einordnung M6:** Ein Commit je Datei kostet etwa die Hälfte der Zeit; bewusst beibehalten, weil dann nach einem Absturz höchstens eine Datei unklar ist (die die Reparatur über das Dateisystem klärt). Auf einer USB-Festplatte dauert jedes Umbenennen länger – der Dialog zeigt den Fortschritt.

@@ -24,7 +24,8 @@ from fotoduenner.scanner.sidecars import combine_ratings
 
 log = logging.getLogger(__name__)
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
+REUSE_MIN_SCHEMA = 2  # oldest schema whose photos/features columns match (v3: journal only)
 SQL_CHUNK = 500  # stay below SQLite's bound-parameter limit
 
 SCHEMA = """
@@ -73,7 +74,18 @@ CREATE TABLE IF NOT EXISTS decisions(
 );
 CREATE TABLE IF NOT EXISTS journal(
   id INTEGER PRIMARY KEY, batch_id TEXT, created_at REAL,
-  src TEXT, dst TEXT, state TEXT
+  src TEXT, dst TEXT,                    -- relative to the album, POSIX separators
+  state TEXT,              -- 'planned' | 'moved' | 'reverted' | 'failed' | 'cancelled' | 'missing'
+  photo_id INTEGER,                      -- NULL for entries imported from the protocol copy
+  error TEXT,                            -- German message for the user (failures, notes)
+  restored TEXT                          -- undo: actual target when the old name was taken
+);
+CREATE INDEX IF NOT EXISTS journal_batch ON journal(batch_id);
+CREATE TABLE IF NOT EXISTS batches(
+  batch_id TEXT PRIMARY KEY,
+  created_at REAL,
+  state TEXT,                            -- 'running' | 'applied' | 'undoing' | 'reverted' | 'empty'
+  count_before INTEGER                   -- photos in the album before this batch (T2)
 );
 CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT);
 """
@@ -81,6 +93,11 @@ CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT);
 # Schema upgrades, applied in order to databases with an older user_version.
 MIGRATIONS: dict[int, tuple[str, ...]] = {
     2: ("ALTER TABLE features ADD COLUMN faces_native INTEGER NOT NULL DEFAULT 0",),
+    3: (
+        "ALTER TABLE journal ADD COLUMN photo_id INTEGER",
+        "ALTER TABLE journal ADD COLUMN error TEXT",
+        "ALTER TABLE journal ADD COLUMN restored TEXT",
+    ),
 }
 
 # Columns copied when a photo is found again via its fingerprint.
@@ -351,7 +368,7 @@ class AlbumStore:
                 continue
             with contextlib.closing(other):
                 try:
-                    if other.execute("PRAGMA user_version").fetchone()[0] != SCHEMA_VERSION:
+                    if other.execute("PRAGMA user_version").fetchone()[0] < REUSE_MIN_SCHEMA:
                         continue
                     keys = list(by_key)
                     matches: list[sqlite3.Row] = []

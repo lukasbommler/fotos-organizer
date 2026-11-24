@@ -2,6 +2,8 @@
 // keyboard, context menu, compare, large view. Decisions live in ReviewStore (store.js).
 import { renderBundles } from "./bundles.js";
 import { openCompare } from "./compare.js";
+import { api } from "./api.js";
+import { applyFlow, retryFlow, undoFlow } from "./dialogs.js";
 import { daySections, renderSheet, TILE_SIZES } from "./grid.js";
 import { ReviewStore } from "./store.js";
 import { decisionTile, TileRegistry } from "./tiles.js";
@@ -20,7 +22,7 @@ const HINT = "Klick: umdrehen · Doppelklick / Enter: Großansicht · Strg + Kli
 
 const prefs = { tab: "groups", tileSize: 1, filters: { people: false, changed: false, manual: false } };
 
-/** Mount the review screen into `main`. `ctx` = {setStatus, setCrumb, setFooter, startScreen}. */
+/** Mount the review screen into `main`. `ctx` = {setStatus, setCrumb, setFooter, startScreen, reload}. */
 export function mountReview(main, view, ctx) {
   const store = new ReviewStore(view.album_id, view);
   const registry = new TileRegistry();
@@ -39,9 +41,41 @@ export function mountReview(main, view, ctx) {
   // ── header tally and footer ─────────────────────────────────────────────────────────
   const tally = document.getElementById("tally");
   const rejectSum = h("span.reject-sum");
-  const undoApplied = h("button.ghost", { type: "button", disabled: true, title: "Steht nach dem Übernehmen zur Verfügung" }, "Rückgängig");
-  const apply = h("button.primary", { type: "button", disabled: true, title: "Das Verschieben in „_Aussortiert“ folgt im nächsten Schritt" }, "Übernehmen …");
+  const applyState = view.apply ?? { last: null };
+  const lastBatch = applyState.last;
+  const undoApplied = h("button.ghost", { type: "button", disabled: !lastBatch,
+    title: lastBatch ? `Übernahme vom ${fmt.when(lastBatch.created_at)} rückgängig machen` : "Steht nach dem Übernehmen zur Verfügung",
+    onclick: () => undoFlow(store.albumId, lastBatch, ctx.reload) }, "Rückgängig");
+  const apply = h("button.primary", { type: "button", onclick: () => applyFlow(store.albumId, ctx.reload) }, "Übernehmen …");
   ctx.setFooter(rejectSum, h("span.apply-actions", {}, undoApplied, apply));
+
+  // after "Übernehmen" (T2): status line, "Erneut ausdünnen", files that were not moved
+  const banner = h("div.applied-banner", { hidden: true });
+  function renderBanner() {
+    const s = store.stats;
+    if (!applyState.applied || !lastBatch) { banner.hidden = true; return; }
+    const total = s?.total ?? store.photos.length;
+    const before = applyState.count_before;
+    banner.hidden = false;
+    fill(banner,
+      h("span.applied-mark", { "aria-hidden": "true" }),
+      h("span.applied-text", {},
+        `Übernommen am ${fmt.when(lastBatch.created_at)}`,
+        before ? h("span.mono", {}, ` · ${fmt.num(before)} → ${fmt.num(total)} Bilder`) : null,
+        s?.hold ? " · Alle übrigen Bilder gelten als behalten." : " · Die Vorschläge beziehen sich auf die verbliebenen Bilder."),
+      lastBatch.pending_count
+        ? h("button.link", { type: "button", onclick: () => retryFlow(store.albumId, lastBatch, ctx.reload) },
+          `${fmt.num(lastBatch.pending_count)} nicht verschoben – erneut versuchen`)
+        : null,
+      h("span.grow"),
+      s?.hold
+        ? h("button.ghost.small", { type: "button", title: "Neue Vorschläge für die verbliebenen Bilder – Ihre Entscheidungen bleiben erhalten",
+          onclick: async (e) => {
+            e.currentTarget.disabled = true;
+            try { await api.rethin(store.albumId); ctx.reload(); } catch (err) { flash(err.message, 8000); e.currentTarget.disabled = false; }
+          } }, "Erneut ausdünnen")
+        : null);
+  }
 
   function renderCounts() {
     const s = store.stats;
@@ -54,6 +88,8 @@ export function mountReview(main, view, ctx) {
       h("span.after", {}, fmt.num(keep)), h("span.delta", {}, delta ? `−${delta} %` : "±0 %"));
     const { n, bytes } = store.rejectedBytes();
     rejectSum.textContent = `Aussortiert: ${fmt.num(n)} Bilder · ${fmt.bytes(bytes)}`;
+    apply.disabled = n === 0;
+    apply.title = n ? `${fmt.num(n)} Bilder nach „_Aussortiert“ verschieben – mit Zusammenfassung vorab` : "Keine Bilder aussortiert";
     for (const [key] of TABS) tabCount[key].textContent = fmt.num(tabItems(key).count);
     renderNotice();
   }
@@ -135,13 +171,19 @@ export function mountReview(main, view, ctx) {
   function renderSettings() {
     const s = store.stats;
     if (!s) return;
-    for (const b of modeButtons) b.setAttribute("aria-checked", String(b.dataset.mode === s.mode));
+    const held = Boolean(s.hold);
+    for (const b of modeButtons) {
+      b.setAttribute("aria-checked", String(b.dataset.mode === s.mode));
+      b.disabled = held;
+      b.title = held ? "Album ist übernommen – für neue Vorschläge „Erneut ausdünnen“ wählen" : "";
+    }
+    quotaInput.disabled = held;
     quota.hidden = s.mode !== "quota";
     if (document.activeElement !== quotaInput) {
       quotaInput.value = String(Math.round(s.keep_target * 100));
       quotaValue.textContent = `${quotaInput.value} %`;
     }
-    const clean = s.mode !== "quota";
+    const clean = s.mode !== "quota" || held;
     strength.classList.toggle("is-disabled", clean);
     strength.title = clean ? "Im Modus „Nur Doppelte & Schlechte“ werden Motivgruppen nicht ausgedünnt – die Gruppierung wirkt nur in „Zielquote“." : "";
     notches.forEach((b, i) => {
@@ -209,6 +251,7 @@ export function mountReview(main, view, ctx) {
       h("span.grow"),
       h("div.segmented", { role: "group", "aria-label": "Kachelgröße" }, sizeButtons),
       h("button.ghost.small", { type: "button", onclick: ctx.startScreen }, "Anderes Album")),
+    banner,
     sheet);
   main.className = "review";
   setSize(prefs.tileSize);
@@ -250,6 +293,7 @@ export function mountReview(main, view, ctx) {
   }
 
   function emptyGroupsText() {
+    if (store.stats.hold) return "Album übernommen – alle verbliebenen Bilder gelten als behalten. „Erneut ausdünnen“ macht neue Vorschläge.";
     return store.stats.mode === "clean"
       ? "Keine Serien mit fast gleichen Bildern zum Ausdünnen. Ähnliche Motive bleiben in diesem Modus unangetastet – alle Bilder unter „Alle“."
       : "Keine Gruppe mit aussortierten Bildern.";
@@ -466,6 +510,7 @@ export function mountReview(main, view, ctx) {
       return;
     }
     renderSettings();
+    renderBanner();
     if (event.structure) {
       showTab(prefs.tab);
       return;
@@ -477,6 +522,7 @@ export function mountReview(main, view, ctx) {
 
   ctx.setStatus(HINT);
   renderSettings();
+  renderBanner();
   showTab(prefs.tab);
   if (!view.review) ctx.setStatus("Noch nicht analysiert – Vorschläge erscheinen nach der Analyse.");
 

@@ -284,6 +284,27 @@ def decide(layout: Layout, settings: Settings, manual: Mapping[int, str], cfg: C
     )
 
 
+def hold(n: int, manual: Mapping[int, str]) -> Decisions:
+    """Album already applied (T2): every photo left is kept until "Erneut ausdünnen".
+
+    Manual decisions still count, so single photos can be sorted out and applied again.
+    """
+    keep = np.ones(n, dtype=bool)
+    reasons: list[Reason | None] = [None] * n
+    for i, choice in manual.items():
+        if choice == "reject":
+            keep[i] = False
+            reasons[i] = Reason("manual")
+    review = np.zeros(n, dtype=bool)
+    return Decisions(
+        keep=keep,
+        auto_keep=np.ones(n, dtype=bool),
+        review=review,
+        reasons=reasons,
+        stats=_stats(keep, reasons, review),
+    )
+
+
 CATEGORY = {
     "duplicate": "duplicate",
     "series": "series",

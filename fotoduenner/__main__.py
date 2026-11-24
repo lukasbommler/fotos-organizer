@@ -39,6 +39,11 @@ MSG_NO_WEBVIEW2 = (
     "Sie ist kostenlos und auf Windows 11 normalerweise vorhanden. Soll die Download-Seite von "
     "Microsoft im Browser geöffnet werden?"
 )
+MSG_CONFIRM_CLOSE_MOVING = (
+    "Es werden gerade Bilder verschoben.\n\nTrotzdem beenden? Der Vorgang hält nach dem "
+    "aktuellen Bild an. Alles bisher Verschobene ist protokolliert und lässt sich fortsetzen "
+    "oder rückgängig machen."
+)
 MSG_CONFIRM_CLOSE = (
     "Die Analyse läuft noch.\n\nTrotzdem beenden? Bereits analysierte Bilder bleiben gespeichert; "
     "beim nächsten Öffnen geht es dort weiter."
@@ -103,10 +108,12 @@ def run_window(url: str, state: AppState, smoke_test: bool) -> None:
     def on_closing() -> bool:
         if smoke_test or not state.busy():
             return True
-        return ask_yes_no(MSG_CONFIRM_CLOSE)  # False keeps the window open
+        message = MSG_CONFIRM_CLOSE_MOVING if state.moving() else MSG_CONFIRM_CLOSE
+        return ask_yes_no(message)  # False keeps the window open
 
     state.folder_picker = pick_folder
     state.on_focus = focus
+    state.open_folder = os.startfile  # Explorer on _Aussortiert (04 §3)
     state.on_shutdown = window.destroy
     window.events.closing += on_closing
 

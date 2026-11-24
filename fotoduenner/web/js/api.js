@@ -41,6 +41,13 @@ export const api = {
   decision: (id, photoIds, manual) =>
     request("POST", `/api/album/${id}/decision`, { photo_ids: photoIds, manual }),
   settings: (id, changes) => request("POST", `/api/album/${id}/settings`, changes),
+  rethin: (id) => request("POST", `/api/album/${id}/rethin`),
+  applyPreview: (id) => request("POST", `/api/album/${id}/apply/preview`),
+  apply: (id, photoIds) => request("POST", `/api/album/${id}/apply`, { photo_ids: photoIds }),
+  applyRetry: (id, batchId) => request("POST", `/api/album/${id}/apply/retry`, { batch_id: batchId }),
+  applyStatus: (id) => request("GET", `/api/album/${id}/apply/status`),
+  undo: (id, batchId) => request("POST", `/api/album/${id}/undo`, { batch_id: batchId }),
+  openFolder: (id) => request("POST", `/api/album/${id}/open-folder`),
   fullUrl: (id, photo) => `/api/album/${id}/photo/${photo.id}/full?v=${photo.v ?? 0}`,
   thumbUrl: (id, photo, size = "s") =>
     `/api/album/${id}/photo/${photo.id}/thumb?size=${size}&v=${photo.v ?? 0}`,

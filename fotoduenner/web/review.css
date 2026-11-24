@@ -381,3 +381,79 @@ button.ghost.is-on { border-color: var(--amber); color: var(--paper); }
   .toolbar { flex-wrap: wrap; row-gap: 0.4rem; }
   .quota-range { width: 7rem; }
 }
+
+/* ── Übernehmen / Rückgängig (M6) ────────────────────── */
+.review { grid-template-rows: auto auto auto minmax(0, 1fr); }
+.review > .applied-banner { grid-row: 3; }
+.review > .sheet { grid-row: 4; }
+.applied-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 1rem;
+  padding: 0.45rem 1.25rem;
+  background: color-mix(in srgb, var(--amber) 7%, var(--graphite-0));
+  border-bottom: 1px solid var(--hairline);
+  font-size: 0.82rem;
+  color: var(--paper-dim);
+}
+.applied-banner .grow { flex: 1; }
+.applied-banner .mono { color: var(--paper); }
+.applied-mark { width: 7px; height: 7px; background: var(--amber); flex-shrink: 0; }
+.mode-opt:disabled { cursor: default; opacity: 0.45; }
+.quota-range:disabled { opacity: 0.45; }
+
+.applied-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.25rem;
+  margin: 0 0 1.5rem;
+  padding: 0.75rem 0.9rem;
+  border-left: 2px solid var(--amber);
+  background: color-mix(in srgb, var(--amber) 6%, transparent);
+  font-size: 0.9rem;
+  color: var(--paper-dim);
+}
+.applied-note p { margin: 0; display: flex; gap: 0.6rem; align-items: baseline; line-height: 1.5; }
+.applied-note .mark { color: var(--amber); }
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  background: rgb(8 9 10 / 0.78);
+  animation: fade-in 160ms ease both;
+}
+.dialog { width: min(36rem, 100%); max-height: calc(100vh - 4rem); overflow-y: auto; padding: 2.25rem 2.5rem 2rem; }
+.dialog:focus { outline: none; }
+.dialog-title { margin: 0 0 1.25rem; font-size: 1.45rem; font-weight: 600; }
+.dialog .lead { margin-bottom: 1.25rem; }
+.dialog .path { margin: 0 0 1.5rem; }
+.dialog .warnings { margin-bottom: 1.25rem; }
+.dialog-actions { justify-content: flex-end; margin-top: 1.75rem; }
+.dialog-result { color: var(--paper); font-size: 1.15rem; }
+.dialog-count { margin: -0.5rem 0 0.25rem; font-size: 0.88rem; }
+.dialog-current { margin: 0; min-height: 1.3em; font-size: 0.78rem; color: var(--paper-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dialog-sub { margin: 1.25rem 0 0.5rem; font-size: 0.85rem; color: var(--paper); }
+.dialog-flash { margin-top: 0.75rem; }
+.reason-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.35rem 2rem;
+  margin: 0 0 1.25rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--hairline);
+  font-size: 0.9rem;
+}
+.reason-list dt { color: var(--paper-dim); }
+.reason-list dd { margin: 0; text-align: right; color: var(--paper); }
+.failures { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.45rem; max-height: 12rem; overflow-y: auto; font-size: 0.82rem; }
+.failures li { display: grid; gap: 0.1rem; padding-left: 0.7rem; border-left: 2px solid var(--reject); }
+.failure-name { color: var(--paper); overflow-wrap: anywhere; }
+.failure-why { color: var(--paper-dim); }
+.review > .toolbar { flex-wrap: wrap; row-gap: 0.5rem; }

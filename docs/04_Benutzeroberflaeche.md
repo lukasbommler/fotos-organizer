@@ -138,8 +138,11 @@ Dialog „Übernehmen“:
 | GET | `/api/recent` | „Zuletzt geöffnet“ |
 | POST | `/api/instance/focus` | zweiter Programmstart holt das Fenster nach vorn (A3) |
 | POST | `/api/album/{id}/apply/preview` | Zusammenfassung vor dem Verschieben |
-| POST | `/api/album/{id}/apply` | Verschieben (Fortschritt über SSE) |
-| POST | `/api/album/{id}/undo` | letzten Batch rückgängig |
+| POST | `/api/album/{id}/apply` | `{photo_ids}` (genau die der Zusammenfassung) → Verschieben im Hintergrund |
+| POST | `/api/album/{id}/apply/retry` | `{batch_id}` → fehlgeschlagene/unterbrochene Dateien erneut |
+| GET | `/api/album/{id}/apply/status` | Fortschritt und Ergebnis des laufenden Vorgangs + Album-Status (Abfrage alle 150 ms) |
+| POST | `/api/album/{id}/undo` | letzten Vorgang rückgängig (auch ohne Analyse, A32) |
+| POST | `/api/album/{id}/open-folder` | `_Aussortiert` im Explorer (nur im Programmfenster) |
 | POST | `/api/open-explorer` | Ordner öffnen |
 | POST | `/api/shutdown` | Programm beenden |
 

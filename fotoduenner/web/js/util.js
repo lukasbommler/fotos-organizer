@@ -5,6 +5,8 @@ const DATE = new Intl.DateTimeFormat("de-DE", {
   weekday: "short", day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC",
 });
 const TIME = new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "UTC" });
+// Program events (Übernehmen) are real timestamps: local time, unlike EXIF times.
+const WHEN = new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
 /** Create an element: h("div.tile.is-error", {title: "x", onclick}, child, "text", ...) */
 export function h(spec, attrs = {}, ...children) {
@@ -56,6 +58,7 @@ export const fmt = {
   /** EXIF times are stored "as UTC" without a zone (A15) – format them in UTC to show them unchanged. */
   day: (t) => (t ? DATE.format(new Date(t * 1000)) : "Ohne Datum"),
   time: (t) => (t ? TIME.format(new Date(t * 1000)) : "–"),
+  when: (t) => (t ? `${WHEN.format(new Date(t * 1000))} Uhr` : "–"),
   frame: (n, total) => String(n).padStart(Math.max(3, String(total).length), "0"),
 };
 
