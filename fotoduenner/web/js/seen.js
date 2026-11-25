@@ -3,7 +3,7 @@
 // that moment is part of the mark: a photo seen as "keep" is not seen as "sort out".
 import { api } from "./api.js";
 
-export const SEEN = { group: 1, sheet: 2, large: 4 };
+export const SEEN = { group: 1, sheet: 2, large: 4, confirmed: 8 };
 export const LARGE_DWELL_MS = 700;
 const DWELL_MS = 1000;
 const TICK_MS = 250;
@@ -56,7 +56,7 @@ export class SeenTracker {
     const now = performance.now();
     // nobody looks at tiles behind an overlay, in a minimised window or while away
     // ASSUMPTION: document.hasFocus() is not used, it may stay false in an embedded window.
-    const covered = document.hidden || now - this.lastInput > IDLE_MS || document.querySelector(".viewer, .dialog-backdrop");
+    const covered = document.hidden || now - this.lastInput > IDLE_MS || document.querySelector(".viewer, .dialog-backdrop, .xl");
     for (const [fig, state] of this.visible) {
       const id = Number(fig.dataset.id);
       const key = this._key(id);

@@ -152,21 +152,6 @@ button.ghost.small { min-height: 2rem; padding: 0 0.7rem; font-size: 0.8rem; }
 }
 .decision:has(.is-reject) .reason { color: var(--paper-faint); }
 
-/* grease-pencil marks */
-.mark-keep, .mark-reject {
-  position: absolute;
-  inset: 4px 4px 18px;
-  width: calc(100% - 8px);
-  height: calc(100% - 22px);
-  overflow: visible;
-  pointer-events: none;
-  animation: pencil 220ms var(--ease) both;
-}
-.mark-keep path, .mark-reject path { fill: none; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-.mark-keep path { stroke: var(--keep); stroke-width: 2.6; opacity: 0.92; }
-.mark-reject path { stroke: var(--reject); stroke-width: 3.4; }
-@keyframes pencil { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
-
 .tile.is-review { box-shadow: inset 3px 0 0 var(--amber); }
 .review-flag {
   position: absolute;
@@ -244,8 +229,6 @@ button.link:hover { color: var(--paper); border-color: var(--paper-dim); }
 .sheet-grid .reason { -webkit-line-clamp: 1; min-height: 1.35em; }
 .series .reason { min-height: 2.7em; }
 .marks { position: absolute; inset: 0; pointer-events: none; }
-.mark-keep, .mark-reject { animation: none; }
-.tile.is-fresh .mark-keep, .tile.is-fresh .mark-reject { animation: pencil 220ms var(--ease) both; }
 .marks .hand { position: absolute; top: 5px; left: 6px; color: var(--amber); }
 .marks .hand .icon { width: 13px; height: 13px; }
 .tile.is-selected { outline: 2px solid var(--amber); outline-offset: 2px; }
@@ -312,10 +295,6 @@ button.link:hover { color: var(--paper); border-color: var(--paper-dim); }
 .icon-chevron { width: 10px; height: 10px; stroke-width: 10; }
 
 /* large view: decision panel, marks, zoom */
-.viewer-marks { position: absolute; inset: -6px; pointer-events: none; }
-.viewer-marks .mark-keep, .viewer-marks .mark-reject { inset: 0; width: 100%; height: 100%; }
-.viewer-marks .mark-keep path { stroke-width: 3.2; opacity: 0.6; }
-.viewer-marks .mark-reject path { stroke-width: 4; opacity: 0.8; }
 .viewer.is-reject .viewer-img { opacity: 0.8; }
 .viewer-img { cursor: zoom-in; }
 .zoom { width: 100%; height: 100%; overflow: auto; cursor: grab; scrollbar-color: var(--hairline-strong) transparent; }
@@ -372,7 +351,6 @@ button.ghost.is-on { border-color: var(--amber); color: var(--paper); }
 .compare-pane.is-reject .compare-img { opacity: 0.6; }
 .compare-pane.is-zoomed .compare-box { place-items: start; overflow: auto; cursor: grab; }
 .compare-pane.is-zoomed .compare-img { max-width: none; max-height: none; }
-.compare-pane.is-zoomed .viewer-marks { display: none; }
 .compare-pane.is-loading .compare-head { background: color-mix(in srgb, var(--amber) 10%, transparent); }
 .compare-info { padding: 0.6rem 0.75rem 0.75rem; border-top: 1px solid var(--hairline); }
 .compare-info .verdict-reason { min-height: 1.3em; margin-bottom: 0.4rem; }

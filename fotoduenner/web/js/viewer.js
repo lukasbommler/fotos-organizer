@@ -1,7 +1,6 @@
 // Large view overlay (04 §2): 1600-px preview, arrows, film strip, details, decision panel,
 // 100 % zoom on the original (Z or click), debug view (D).
 import { api } from "./api.js";
-import { circleMark, strikeMark } from "./marks.js";
 import { LARGE_DWELL_MS, SEEN } from "./seen.js";
 import { stateWord } from "./tiles.js";
 import { cropMarks, fill, fmt, h } from "./util.js";
@@ -117,8 +116,7 @@ export function openViewer({ albumId, photos, index, onClose, store = null }) {
   const img = h("img.viewer-img", { alt: "" });
   const loading = h("span.viewer-loading", { "aria-hidden": "true" });
   const overlay = h("div.debug-overlay", { "aria-hidden": "true" });
-  const marks = h("span.viewer-marks", { "aria-hidden": "true" });
-  const frame = h("div.viewer-frame", {}, img, marks, overlay, loading, ...cropMarks());
+  const frame = h("div.viewer-frame", {}, img, overlay, loading, ...cropMarks());
   const zoomImg = h("img.zoom-img", { alt: "", draggable: "false" });
   const zoomBox = h("div.zoom", { hidden: true, tabindex: "-1" }, zoomImg);
   const stage = h("div.viewer-stage", {}, frame, zoomBox);
@@ -171,7 +169,7 @@ export function openViewer({ albumId, photos, index, onClose, store = null }) {
     const d = store.decision(photo.id);
     decision.hidden = false;
     root.classList.toggle("is-reject", !d.keep);
-    marks.replaceChildren(...(d.unanalysed ? [] : [d.keep ? circleMark(photo.id) : strikeMark(photo.id)]));
+    root.classList.toggle("is-keep", d.keep && !d.unanalysed);
     const ref = d.ref ? store.byId.get(d.ref) : null;
     const pairs = words(store.fact(photo.id), lastFeatures);
     fill(decision, 
@@ -236,7 +234,7 @@ export function openViewer({ albumId, photos, index, onClose, store = null }) {
       const p = photos[i];
       const rejected = store ? !store.decision(p.id).keep : false;
       frames.push(
-        h(`button.strip-frame${rejected ? ".is-reject" : ""}`, {
+        h(`button.strip-frame${!store ? "" : rejected ? ".is-reject" : ".is-keep"}`, {
           type: "button",
           role: "listitem",
           "aria-current": i === current ? "true" : null,

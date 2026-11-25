@@ -1,7 +1,7 @@
-// Decision tile (04 §1.4): circled = keep, struck out = sort out, amber "!" = please check,
+// Decision tile (04 §1.4): green frame + ✓ = keep, red frame + ✕ = sort out, "!" = please check,
 // hand = changed by you, star = protected by rating. The reason sits under the tile.
 import { api } from "./api.js";
-import { circleMark, icon, sharpGauge, strikeMark } from "./marks.js";
+import { icon, sharpGauge } from "./marks.js";
 import { fmt, h } from "./util.js";
 
 export function stateWord(d) {
@@ -50,7 +50,7 @@ export function updateTile(fig, store, fresh = true) {
   const d = store.decision(id);
   const photo = store.byId.get(id);
   const tile = fig.tile;
-  tile.classList.toggle("is-keep", d.keep);
+  tile.classList.toggle("is-keep", d.keep && !d.unanalysed);
   tile.classList.toggle("is-reject", !d.keep);
   tile.classList.toggle("is-review", Boolean(d.review));
   tile.classList.toggle("is-manual", Boolean(d.manual));
@@ -58,7 +58,6 @@ export function updateTile(fig, store, fresh = true) {
   tile.dataset.ref = d.ref ?? "";
   const marks = tile.querySelector(".marks");
   marks.replaceChildren(...[
-    d.unanalysed ? null : d.keep ? circleMark(id) : strikeMark(id),
     d.review ? h("span.review-flag", { title: "Bitte prüfen" }, "!") : null,
     d.manual ? h("span.hand", { title: "Von Ihnen entschieden" }, icon("hand")) : null,
   ].filter(Boolean));

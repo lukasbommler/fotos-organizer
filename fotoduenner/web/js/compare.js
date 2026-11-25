@@ -1,7 +1,6 @@
 // Compare view (04 §2): 2–4 photos side by side, each with its decision and its own 100 % zoom.
 // Synchronous zoom/pan comes later (T14).
 import { api } from "./api.js";
-import { circleMark, strikeMark } from "./marks.js";
 import { LARGE_DWELL_MS, SEEN } from "./seen.js";
 import { stateWord } from "./tiles.js";
 import { fmt, h } from "./util.js";
@@ -13,8 +12,7 @@ export function openCompare({ store, ids, onClose }) {
   function pane(id, i) {
     const photo = store.byId.get(id);
     const img = h("img.compare-img", { src: api.thumbUrl(store.albumId, photo, "l"), alt: "", draggable: "false" });
-    const marks = h("span.viewer-marks", { "aria-hidden": "true" });
-    const box = h("div.compare-box", {}, img, marks);
+    const box = h("div.compare-box", {}, img);
     const info = h("div.compare-info");
     const el = h("section.compare-pane", { tabindex: "0", "aria-label": `Bild ${photo.n}` },
       h("header.compare-head", {}, h("span.mono", {}, `${i + 1}`), h("span.compare-name", {}, `${fmt.frame(photo.n, store.photos.length)} · ${photo.name}`)),
@@ -56,7 +54,7 @@ export function openCompare({ store, ids, onClose }) {
     function render() {
       const d = store.decision(id);
       el.classList.toggle("is-reject", !d.keep);
-      marks.replaceChildren(d.keep ? circleMark(id) : strikeMark(id));
+      el.classList.toggle("is-keep", d.keep);
       info.replaceChildren(
         h(`p.verdict-state${d.keep ? ".is-keep" : ".is-reject"}${d.review ? ".is-review" : ""}`, {},
           h("span.verdict-glyph", { "aria-hidden": "true" }), stateWord(d), d.manual ? h("span.verdict-manual", {}, "· von Ihnen") : null),

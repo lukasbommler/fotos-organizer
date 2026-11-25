@@ -89,8 +89,12 @@ CREATE TABLE IF NOT EXISTS batches(
 );
 CREATE TABLE IF NOT EXISTS seen(          -- looked at by the user (D20), local only
   photo_id INTEGER PRIMARY KEY REFERENCES photos(id) ON DELETE CASCADE,
-  how INTEGER NOT NULL,                  -- bits: 1 open group, 2 tab, 4 large view/comparison
+  how INTEGER NOT NULL,                  -- bits: 1 open group, 2 tab, 4 large view, 8 confirmed
   shown INTEGER NOT NULL                 -- proposal shown at that moment: 1 keep, 0 sort out
+);
+CREATE TABLE IF NOT EXISTS done_groups(   -- stacks the user has confirmed (A35)
+  sig TEXT PRIMARY KEY,                  -- members + proposals, computed by the frontend
+  at REAL
 );
 CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT);
 """
@@ -580,6 +584,20 @@ class AlbumStore:
                 " ON CONFLICT(photo_id) DO UPDATE SET manual=excluded.manual",
                 (photo_id, manual),
             )
+
+    @staticmethod
+    def done_groups(conn: sqlite3.Connection) -> list[str]:
+        return [r["sig"] for r in conn.execute("SELECT sig FROM done_groups ORDER BY at")]
+
+    @staticmethod
+    def set_group_done(conn: sqlite3.Connection, sig: str, done: bool) -> None:
+        with conn:
+            if done:
+                conn.execute(
+                    "INSERT OR REPLACE INTO done_groups(sig, at) VALUES(?, ?)", (sig, time.time())
+                )
+            else:
+                conn.execute("DELETE FROM done_groups WHERE sig=?", (sig,))
 
     @staticmethod
     def add_seen(conn: sqlite3.Connection, items: Iterable[tuple[int, int, bool]]) -> None:

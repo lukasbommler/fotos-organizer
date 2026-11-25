@@ -1,15 +1,14 @@
 // FotoDünner frontend: start → pre-check → analysis → contact sheet (04 §1).
 import { api, ApiError } from "./api.js";
-import { tile } from "./grid.js";
+import { initDesign, samplePhoto, stage } from "./design.js";
 import { undoFlow } from "./dialogs.js";
 import { mountReview } from "./review.js";
-import { cropMarks, fmt, h } from "./util.js";
+import { cropMarks, fmt, h, reducedMotion } from "./util.js";
 
 const main = document.getElementById("app");
 const crumb = document.getElementById("crumb");
 const statusText = document.getElementById("status-text");
 
-const LIVE_TILES = 96; // newest previews shown while analysing
 const STAGE_LABEL = {
   scan: "Ordner durchsuchen",
   analyze: "Bilder einlesen und prüfen",
@@ -49,9 +48,22 @@ function show(...nodes) {
   setFooter(null, null);
   ui.events?.close();
   ui.events = null;
+  clearInterval(ui.timer);
+  clearInterval(ui.demo);
+  stage.stop();
   main.className = "stage";
   main.replaceChildren(...nodes);
 }
+
+/** Screen on the animated stage: text left, the core in the middle, facts right (designs.css). */
+function showHud(kind, { title, core, side = [], foot = [] }, mode, extra = {}) {
+  show(h("div.hud-title", {}, title), h("div.hud-core", {}, core), h("aside.hud-side", {}, side), h("div.hud-foot", {}, foot));
+  main.className = `hud hud-${kind}`;
+  stage.set({ mode, done: 0, total: 0, ...extra });
+  stage.start();
+}
+
+const DONE_MS = 1300; // closing flash of the animation before the review opens
 
 function errorLine() {
   return h("p.error", { role: "alert", hidden: true });
@@ -105,25 +117,23 @@ async function startScreen() {
   const hint = h("p.hint", { hidden: true }, h("span.mark", { "aria-hidden": "true" }, "!"),
     "Tipp: Testen Sie FotoDünner zuerst mit einer Kopie eines Urlaubsordners.");
 
-  show(
-    panel("",
+  showHud("start", {
+    title: [
       h("p.eyebrow", {}, "Neues Album"),
       h("h1", {}, "Urlaubsalbum ausdünnen"),
       h("p.lead", {},
         "FotoDünner findet Doppelte, Serienbilder und missglückte Aufnahmen und schlägt vor, was weg kann. ",
         "Sie prüfen jeden Vorschlag selbst. Gelöscht wird nichts – aussortierte Bilder landen im Unterordner ",
         h("code", {}, "_Aussortiert"), " und lassen sich jederzeit zurückholen."),
-      h("div.actions", {}, pick,
-        h("label.check", { for: "recursive" }, recursive, h("span.box", { "aria-hidden": "true" }), "Unterordner einbeziehen")),
-      pathForm,
-      err,
-      h("ol.steps", {},
-        h("li", {}, h("span.num", {}, "01"), "Ordner wählen"),
-        h("li", {}, h("span.num", {}, "02"), "Analysieren"),
-        h("li", {}, h("span.num", {}, "03"), "Prüfen & übernehmen"))),
-    recentBox,
-    hint,
-  );
+      pathForm, err],
+    core: [pick, h("label.check", { for: "recursive" }, recursive, h("span.box", { "aria-hidden": "true" }), "Unterordner einbeziehen")],
+    side: [recentBox, hint],
+    foot: [h("ol.steps", {},
+      h("li", {}, h("span.num", {}, "01"), "Ordner wählen"),
+      h("li", {}, h("span.num", {}, "02"), "Analysieren"),
+      h("li", {}, h("span.num", {}, "03"), "Prüfen & übernehmen")),
+    h("button.link.demo-link", { type: "button", onclick: demoScreen }, "Analyse-Animation ansehen")],
+  }, "idle", { reset: true });
   pick.focus();
 
   try {
@@ -153,11 +163,16 @@ async function openAlbum(path, err) {
   if (!path) return;
   setStatus("Ordner wird geprüft …");
   main.classList.add("is-busy");
+  const since = performance.now();
+  stage.set({ mode: "scan" });
   try {
     const info = await api.open(path, ui.recursive);
+    // let the reading animation be seen, but never make anybody wait for it
+    if (!reducedMotion()) await new Promise((r) => setTimeout(r, Math.max(0, 900 - (performance.now() - since))));
     precheckScreen(info);
   } catch (e) {
     main.classList.remove("is-busy");
+    stage.set({ mode: "idle" });
     setStatus("Bereit");
     showError(err, e);
   }
@@ -203,17 +218,11 @@ function precheckScreen(info) {
     },
   }, done ? "Übersicht öffnen" : resume ? "Analyse fortsetzen" : "Analyse starten");
 
-  show(
-    panel("wide",
+  showHud("check", {
+    title: [
       h("p.eyebrow", {}, "Vorprüfung"),
       h("h1", {}, info.name),
       h("p.path", {}, info.path),
-      h("div.readouts", {},
-        readout("JPEG-Bilder", fmt.num(info.photos)),
-        readout("Gesamtgröße", fmt.bytes(info.total_bytes)),
-        readout("Ignoriert", fmt.num(info.ignored), "Andere Formate, Videos usw. – werden nie verschoben"),
-        readout("Schon analysiert", fmt.num(info.cached)),
-        readout("Geschätzte Dauer", done ? "sofort" : `≈ ${fmt.duration(info.estimate_seconds)}`)),
       applied,
       warnings.length
         ? h("ul.warnings", {}, warnings.map((w) => h("li", {}, h("span.mark", { "aria-hidden": "true" }, "!"), w)))
@@ -222,30 +231,69 @@ function precheckScreen(info) {
         ? h("label.check", { for: "skip-offline" }, skipOffline, h("span.box", { "aria-hidden": "true" }),
           "Cloud-Bilder überspringen (nichts herunterladen)")
         : null,
-      h("div.actions", {}, start,
-        h("button.ghost", { type: "button", onclick: startScreen }, "Anderen Ordner wählen")),
-      err),
-  );
+      err],
+    core: [start, h("button.link", { type: "button", onclick: startScreen }, "Anderen Ordner wählen")],
+    side: [h("div.readouts", {},
+      readout("JPEG-Bilder", fmt.num(info.photos)),
+      readout("Gesamtgröße", fmt.bytes(info.total_bytes)),
+      readout("Ignoriert", fmt.num(info.ignored), "Andere Formate, Videos usw. – werden nie verschoben"),
+      readout("Schon analysiert", fmt.num(info.cached)),
+      readout("Geschätzte Dauer", done ? "sofort" : `≈ ${fmt.duration(info.estimate_seconds)}`))],
+  }, "ready", { total: info.photos, reset: true });
   start.focus();
 }
 
 // ── 1.3 Analyse läuft ─────────────────────────────────────────────────────────────
 
-function scale() {
-  return h("div.scale", { "aria-hidden": "true" },
-    Array.from({ length: 21 }, (_, i) => h(`span.tick${i % 5 === 0 ? ".major" : ""}`)));
+/** Analysis screen; `cancel` is shown below. Returns the functions that feed it with progress. */
+function progressView(eyebrow, name, cancel, note, err) {
+  const percent = h("span.percent", {}, "0");
+  const counter = h("span.counter", {}, "–");
+  const fill = h("span.meter-fill");
+  const label = h("span.stage-label", {}, STAGE_LABEL.scan);
+  const eta = h("dd.mono", {}, "–");
+  const rate = h("dd.mono", {}, "–");
+  const elapsed = h("dd.mono", {}, "0 s");
+  const current = h("dd.mono.current", {}, " ");
+  const meter = h("div.meter", { role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": "0" }, h("span.meter-track", {}, fill));
+  showHud("work", {
+    title: [h("p.eyebrow", {}, eyebrow), h("h1", {}, name), label],
+    core: [h("span.percent-row", {}, percent, h("span.percent-sign", {}, "%")), counter],
+    side: [h("dl.progress-facts", {},
+      h("dt", {}, "Restzeit"), eta, h("dt", {}, "Laufzeit"), elapsed, h("dt", {}, "Tempo"), rate, h("dt", {}, "Aktuelles Bild"), current)],
+    foot: [meter, h("div.actions", {}, cancel, note), err],
+  }, "analyze", { reset: true });
+  const started = performance.now();
+  ui.timer = setInterval(() => { elapsed.textContent = fmt.duration((performance.now() - started) / 1000); }, 1000);
+  let first = null; // (time, done) when the stage began, for the measured speed
+  return {
+    update(p) {
+      label.textContent = STAGE_LABEL[p.stage] ?? label.textContent;
+      const ratio = p.total ? p.done / p.total : 0;
+      fill.style.transform = `scaleX(${ratio})`;
+      meter.setAttribute("aria-valuenow", String(Math.round(ratio * 100)));
+      percent.textContent = String(Math.floor(ratio * 100));
+      counter.textContent = p.total ? `${fmt.frame(p.done, p.total)} / ${fmt.num(p.total)} Bilder` : "–";
+      eta.textContent = p.eta_seconds ? `≈ ${fmt.duration(p.eta_seconds)}` : p.stage === "analyze" || p.stage === "faces" ? "wird berechnet …" : "–";
+      current.textContent = p.current_file ?? " ";
+      current.title = p.current_file ?? "";
+      const now = performance.now();
+      if (!first || first.stage !== p.stage || p.done < first.done) first = { stage: p.stage, at: now, done: p.done };
+      const dt = (now - first.at) / 1000;
+      rate.textContent = dt > 2 && p.done > first.done ? `${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 }).format((p.done - first.done) / dt)} Bilder/s` : "–";
+      stage.set({ mode: p.stage === "scan" ? "scan" : p.stage === "faces" ? "faces" : "analyze", done: p.done, total: p.total });
+    },
+  };
+}
+
+function finishAnimation() {
+  stage.set({ mode: "done" });
+  return new Promise((r) => setTimeout(r, reducedMotion() ? 0 : DONE_MS));
 }
 
 function progressScreen(info) {
   setCrumb(info.name);
   const albumId = info.album_id;
-  const fill = h("span.meter-fill");
-  const counter = h("span.counter", {}, "–");
-  const percent = h("span.percent", {}, "0 %");
-  const stage = h("span.stage-label", {}, STAGE_LABEL.scan);
-  const eta = h("span.mono", {}, "–");
-  const current = h("span.mono.current", {}, " ");
-  const live = h("div.live-grid", { "aria-label": "Zuletzt analysierte Bilder" });
   const err = errorLine();
   const cancel = h("button.ghost", {
     type: "button",
@@ -255,56 +303,54 @@ function progressScreen(info) {
       try { await api.cancel(albumId); } catch (e) { showError(err, e); }
     },
   }, "Abbrechen");
-  const meter = h("div.meter", { role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": "0" },
-    h("span.meter-track", {}, fill), scale());
-
-  show(
-    panel("wide",
-      h("p.eyebrow", {}, "Analyse"),
-      h("h1", {}, info.name),
-      h("div.progress-head", {}, stage, h("span.progress-numbers", {}, counter, percent)),
-      meter,
-      h("dl.progress-facts", {},
-        h("dt", {}, "Restzeit"), h("dd", {}, eta),
-        h("dt", {}, "Aktuell"), h("dd", {}, current)),
-      h("div.actions", {}, cancel,
-        h("span.note", {}, "Abbrechen ist jederzeit möglich – beim nächsten Öffnen geht es weiter.")),
-      err),
-    live,
-  );
+  const view = progressView("Analyse", info.name, cancel,
+    h("span.note", {}, "Abbrechen ist jederzeit möglich – beim nächsten Öffnen geht es weiter."), err);
   setStatus("Analyse läuft – Sie können den Laptop weiter benutzen");
 
-  let total = 0;
   const source = api.events(albumId);
   ui.events = source;
-  source.onmessage = (event) => {
+  source.onmessage = async (event) => {
     const data = JSON.parse(event.data);
     const p = data.progress;
-    if (p) {
-      stage.textContent = STAGE_LABEL[p.stage] ?? stage.textContent;
-      total = p.total || total;
-      const ratio = p.total ? p.done / p.total : 0;
-      fill.style.transform = `scaleX(${ratio})`;
-      meter.setAttribute("aria-valuenow", String(Math.round(ratio * 100)));
-      counter.textContent = p.total ? `${fmt.frame(p.done, p.total)} / ${fmt.num(p.total)}` : "–";
-      percent.textContent = `${Math.floor(ratio * 100)} %`;
-      eta.textContent = p.eta_seconds ? `≈ ${fmt.duration(p.eta_seconds)}` : p.stage === "analyze" || p.stage === "faces" ? "wird berechnet …" : "–";
-      current.textContent = p.current_file ?? " ";
-    }
-    for (const id of data.finished) {
-      live.prepend(tile(albumId, { id, n: 0, name: "", status: "done", v: 0 }, 0));
-      while (live.childElementCount > LIVE_TILES) live.lastElementChild.remove();
-    }
+    if (p) view.update(p);
+    for (const id of data.finished.slice(-4)) stage.addPhoto(api.thumbUrl(albumId, { id, v: 0 }));
     if (data.state === "running") return;
     source.close();
     ui.events = null;
-    if (data.state === "done") reviewScreen(albumId);
-    else if (data.state === "cancelled") cancelledScreen(info, p);
+    if (data.state === "done") {
+      await finishAnimation();
+      reviewScreen(albumId);
+    } else if (data.state === "cancelled") cancelledScreen(info, p);
     else showError(err, data.error || "Die Analyse ist fehlgeschlagen.");
   };
   source.onerror = () => {
     if (source.readyState === EventSource.CLOSED) showError(err, "Verbindung zum Programm verloren.");
   };
+}
+
+/** Preview of the animation with painted pictures; reads nothing and changes nothing. */
+function demoScreen() {
+  setCrumb("Vorschau");
+  setStatus("Vorschau mit gemalten Beispielbildern – es wird nichts analysiert");
+  const back = h("button.ghost", { type: "button", onclick: startScreen }, "Vorschau beenden");
+  const view = progressView("Vorschau", "So sieht die Analyse aus", back,
+    h("span.note", {}, "Beispiel mit 480 gemalten Bildern. Das Design lässt sich oben rechts umschalten."), errorLine());
+  const total = 480;
+  let tick = 0;
+  ui.demo = setInterval(() => {
+    tick += 1;
+    const k = tick % 190; // 8 ticks per second: scan, analysis, faces, done, again
+    if (k < 14) view.update({ stage: "scan", done: 0, total: 0 });
+    else if (k < 134) {
+      const done = Math.round(((k - 14) / 120) * total);
+      view.update({ stage: "analyze", done, total, eta_seconds: (134 - k) / 8, current_file: `Beispiel/IMG_${String(done).padStart(4, "0")}.jpg` });
+      if (k % 3 === 0) stage.addPhoto(samplePhoto(done));
+    } else if (k < 174) {
+      view.update({ stage: "faces", done: Math.round(((k - 134) / 40) * 60), total: 60, eta_seconds: (174 - k) / 8, current_file: "Beispiel" });
+      if (k % 3 === 0) stage.addPhoto(samplePhoto(k));
+    } else if (k === 174) stage.set({ mode: "done" });
+    else if (k === 188) stage.set({ mode: "scan", reset: true });
+  }, 125);
 }
 
 function cancelledScreen(info, progress) {
@@ -344,5 +390,6 @@ async function reviewScreen(albumId) {
 
 // ── boot ──────────────────────────────────────────────────────────────────────────
 
+await initDesign(document.getElementById("designs"));
 api.version().then((v) => { document.getElementById("version").textContent = `v${v.version}`; }).catch(() => {});
 startScreen();

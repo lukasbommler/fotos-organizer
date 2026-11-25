@@ -29,6 +29,8 @@ async function request(method, path, body) {
 
 export const api = {
   version: () => request("GET", "/api/version"),
+  prefs: () => request("GET", "/api/prefs"),
+  setPrefs: (changes) => request("POST", "/api/prefs", changes),
   recent: () => request("GET", "/api/recent"),
   pickFolder: () => request("POST", "/api/pick-folder"),
   open: (path, recursive) => request("POST", "/api/album/open", { path, recursive }),
@@ -41,6 +43,7 @@ export const api = {
   decision: (id, photoIds, manual) =>
     request("POST", `/api/album/${id}/decision`, { photo_ids: photoIds, manual }),
   settings: (id, changes) => request("POST", `/api/album/${id}/settings`, changes),
+  groupDone: (id, sig, done) => request("POST", `/api/album/${id}/group-done`, { sig, done }),
   seen: (id, items) => request("POST", `/api/album/${id}/seen`, { items }),
   rethin: (id) => request("POST", `/api/album/${id}/rethin`),
   applyPreview: (id) => request("POST", `/api/album/${id}/apply/preview`),

@@ -3,7 +3,7 @@
 import { api } from "./api.js";
 import { icon } from "./marks.js";
 import { decisionTile } from "./tiles.js";
-import { cropMarks, fmt, h } from "./util.js";
+import { cropMarks, fill, fmt, h } from "./util.js";
 
 const FIRST_TILES = 12; // large groups: first tiles + "weitere N anzeigen"
 
@@ -22,6 +22,7 @@ function bundleMeta(store, g) {
   const kept = ds.filter((d) => d.keep).length;
   return h("span.bundle-meta", {},
     h("span.bundle-no", {}, groupLabel(g)),
+    store.isDone(g) ? h("span.done-badge", { title: "Von Ihnen bestätigt" }, "✓ erledigt") : null,
     h("span.bundle-kept", { title: `${kept} von ${g.ids.length} behalten` },
       h("span.keep-glyph", { "aria-hidden": "true" }), `${kept} von ${g.ids.length}`),
     g.people ? icon("person", "Personen im Bild") : null,
@@ -56,13 +57,14 @@ export function refreshBundle(store, g, el) {
   el.querySelector(".bundle-meta").replaceWith(bundleMeta(store, g));
   el.querySelector(".tally").replaceWith(tally(store, g));
   const kept = g.ids.filter((id) => store.decision(id).keep).length;
-  el.setAttribute("aria-label", `Gruppe ${groupLabel(g)}: ${g.ids.length} Bilder, ${kept} behalten`);
+  const done = store.isDone(g);
+  el.classList.toggle("is-done", done);
+  el.setAttribute("aria-label", `Gruppe ${groupLabel(g)}: ${g.ids.length} Bilder, ${kept} behalten${done ? ", erledigt" : ""}`);
   el.title = `${groupLabel(g)} · ${g.ids.length} Bilder · ${kept} behalten – Klick oder Enter klappt auf`;
 }
 
 /**
- * Bundle grid. `actions` = {openViewer(ids, index), groupMenu(g, anchor), registry}.
- * Returns {el, focusables(), refresh(ids), closeLast(), destroy()}.
+ * Bundle grid, at most one stack open. `actions` = {groupMenu(g, anchor), registry, confirm(g)}.
  */
 export function renderBundles(store, groups, actions) {
   const total = store.photos.length;
@@ -104,11 +106,21 @@ export function renderBundles(store, groups, actions) {
         g.people ? h("span.with-icon", {}, icon("person"), "Personen") : null,
         kind ? h("span.with-icon", {}, icon(kind[0]), kind[1]) : null,
         h("span.grow"), menuBtn, closeBtn),
-      rows, more);
+      rows, more,
+      h("footer.open-foot"));
     band.update = () => {
+      const done = store.isDone(g);
+      const rejects = g.ids.filter((id) => !store.decision(id).keep).length;
+      band.classList.toggle("is-done", done);
+      fill(band.querySelector(".open-foot"),
+        h("span.open-sum", {}, `${fmt.num(g.ids.length - rejects)} behalten · ${fmt.num(rejects)} aussortieren`),
+        done
+          ? [h("span.done-badge", {}, "✓ erledigt"), h("button.ghost.small", { type: "button", onclick: () => store.setDone(g, false) }, "Wieder öffnen")]
+          : h("button.primary.confirm", { type: "button", title: "So übernehmen und zum nächsten offenen Stapel", onclick: () => actions.confirm(g) }, "Stapel bestätigen", h("kbd", {}, "B")));
       const k = g.ids.filter((id) => store.decision(id).keep).length;
       band.querySelector(".open-kept").replaceChildren(h("span.keep-glyph", { "aria-hidden": "true" }), `${k} behalten`);
     };
+    band.update();
     return band;
   }
 
@@ -128,22 +140,34 @@ export function renderBundles(store, groups, actions) {
     if (anchor !== entry.band && anchor.nextElementSibling !== entry.band) anchor.after(entry.band);
   }
 
-  const openOrder = [];
+  const openOrder = []; // at most one entry
+  function shut(entry) {
+    for (const fig of entry.band.querySelectorAll("figure.decision")) actions.registry.remove(fig);
+    entry.band.remove();
+    entry.band = null;
+    entry.el.setAttribute("aria-expanded", "false");
+    openOrder.splice(openOrder.indexOf(entry.g.n), 1);
+  }
+
   function toggle(g, focusFirst = false) {
     const entry = bundles.get(g.n);
-    if (entry.band) {
-      for (const fig of entry.band.querySelectorAll("figure.decision")) actions.registry.remove(fig);
-      entry.band.remove();
-      entry.band = null;
-      entry.el.setAttribute("aria-expanded", "false");
-      openOrder.splice(openOrder.indexOf(g.n), 1);
-      return;
-    }
+    actions.onToggle?.();
+    if (entry.band) { shut(entry); return; }
+    const sheet = grid.closest(".sheet");
+    const top = entry.el.getBoundingClientRect().top;
+    for (const n of [...openOrder]) shut(bundles.get(n)); // one stack at a time
+    if (sheet) sheet.scrollTop += entry.el.getBoundingClientRect().top - top; // the clicked stack stays put
     entry.band = openBand(g);
     place(entry);
     entry.el.setAttribute("aria-expanded", "true");
     openOrder.push(g.n);
-    if (focusFirst) entry.band.querySelector(".tile")?.focus();
+    if (sheet) {
+      const box = sheet.getBoundingClientRect();
+      const r = entry.band.getBoundingClientRect();
+      // band below the fold: scroll so that the stack sits at the top and its photos are visible
+      if (r.bottom > box.bottom) sheet.scrollTop += Math.min(entry.el.getBoundingClientRect().top - box.top - 12, r.bottom - box.bottom + 12);
+    }
+    if (focusFirst) entry.band.querySelector(".tile")?.focus({ preventScroll: true });
   }
 
   for (const g of groups) {
@@ -186,6 +210,20 @@ export function renderBundles(store, groups, actions) {
         refreshBundle(store, entry.g, entry.el);
         entry.band?.update();
       }
+    },
+    /** The open stack, if any. */
+    openGroup() { return openOrder.length ? bundles.get(openOrder[0]).g : null; },
+    /** Next stack after `g` that is not confirmed yet (then from the start); null when all are. */
+    nextOpen(g) {
+      const list = [...bundles.values()];
+      const i = list.findIndex((e) => e.g.n === g.n);
+      return [...list.slice(i + 1), ...list.slice(0, i)].find((e) => !store.isDone(e.g)) ?? null;
+    },
+    refreshGroup(g) {
+      const entry = bundles.get(g.n);
+      if (!entry) return;
+      refreshBundle(store, g, entry.el);
+      entry.band?.update();
     },
     /** Close the band that holds the focus, otherwise the one opened last. Returns its bundle. */
     closeFocused() {

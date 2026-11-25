@@ -1,12 +1,6 @@
-// Grease-pencil marks of the contact sheet and thin line icons (D16: no emoji, no sparkles).
+// Thin line icons and the sharpness gauge (D16: no emoji, no sparkles).
 
 const SVG = "http://www.w3.org/2000/svg";
-
-/** Deterministic pseudo-random numbers: every photo keeps "its" hand-drawn stroke. */
-function rand(seed) {
-  let s = (Math.abs(seed) * 7919) % 2147483647 || 1;
-  return () => ((s = (s * 48271) % 2147483647) / 2147483647);
-}
 
 function svg(cls, d, viewBox = "0 0 100 100", stretch = true) {
   const el = document.createElementNS(SVG, "svg");
@@ -18,23 +12,6 @@ function svg(cls, d, viewBox = "0 0 100 100", stretch = true) {
   path.setAttribute("d", d);
   el.append(path);
   return el;
-}
-
-/** Keep: an ellipse in one stroke that overshoots its start, like a real grease pencil. */
-export function circleMark(seed) {
-  const r = rand(seed);
-  const j = (a) => (r() - 0.5) * a;
-  return svg("mark-keep", `M ${52 + j(6)} ${6 + j(3)} C ${84 + j(6)} ${5 + j(4)}, ${97 + j(3)} ${28 + j(6)}, ${96 + j(3)} ${52 + j(6)}`
-    + ` C ${95 + j(3)} ${80 + j(5)}, ${72 + j(6)} ${96 + j(3)}, ${47 + j(6)} ${95 + j(3)}`
-    + ` C ${20 + j(6)} ${94 + j(3)}, ${4 + j(3)} ${74 + j(6)}, ${5 + j(3)} ${48 + j(6)}`
-    + ` C ${6 + j(3)} ${22 + j(6)}, ${27 + j(6)} ${4 + j(3)}, ${62 + j(8)} ${9 + j(4)}`);
-}
-
-/** Sort out: one diagonal strike. */
-export function strikeMark(seed) {
-  const r = rand(seed + 1);
-  const j = (a) => (r() - 0.5) * a;
-  return svg("mark-reject", `M ${7 + j(6)} ${90 + j(6)} C ${35 + j(8)} ${64 + j(8)}, ${60 + j(8)} ${38 + j(8)}, ${94 + j(5)} ${10 + j(6)}`);
 }
 
 const ICONS = {

@@ -314,4 +314,31 @@ def test_please_check_photo_can_be_confirmed(client: TestClient, tmp_path: Path)
 
     seen = f"/api/album/{album_id}/seen"
     assert client.post(seen, json={"items": [[blurred, 4, True]]}, headers=POST).json()["ok"]
-    assert client.post(seen, json={"items": [[blurred, 9, True]]}, headers=POST).status_code == 422
+    assert client.post(seen, json={"items": [[blurred, 16, True]]}, headers=POST).status_code == 422
+
+
+def test_design_choice_is_kept_by_the_program(client: TestClient, tmp_path: Path) -> None:
+    assert client.get("/api/prefs").json() == {}
+    assert client.post("/api/prefs", json={"design": "nova"}, headers=POST).status_code == 200
+    assert client.post("/api/prefs", json={"design": "pink"}, headers=POST).status_code == 422
+    fresh = _client()  # next start: new port, new session
+    fresh.get(f"/?t={TOKEN}")
+    assert fresh.get("/api/prefs").json() == {"design": "nova"}
+
+
+def test_confirmed_stacks_are_kept_per_album(client: TestClient, tmp_path: Path) -> None:
+    album = tmp_path / "Album"
+    for k in range(2):
+        make_jpeg(album / f"{k}.jpg", seed=k)
+    album_id = client.post("/api/album/open", json={"path": str(album)}, headers=POST).json()[
+        "album_id"
+    ]
+    client.post(f"/api/album/{album_id}/analyze", headers=POST)
+    _wait_done(client, album_id)
+    url = f"/api/album/{album_id}/group-done"
+    for sig in ("2-abc", "3-xyz"):
+        assert client.post(url, json={"sig": sig, "done": True}, headers=POST).json()["ok"]
+    client.post(url, json={"sig": "2-abc", "done": False}, headers=POST)
+    assert client.post(url, json={"sig": "a'; DROP", "done": True}, headers=POST).status_code == 422
+    client.post("/api/album/open", json={"path": str(album)}, headers=POST)
+    assert client.get(f"/api/album/{album_id}/view").json()["review"]["done"] == ["3-xyz"]

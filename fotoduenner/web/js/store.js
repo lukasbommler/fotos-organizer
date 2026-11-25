@@ -5,6 +5,20 @@ import { api } from "./api.js";
 
 const UNDO_LIMIT = 200;
 
+/** Short stable hash (cyrb53) of a string, base 36. */
+function hash(text) {
+  let a = 0xdeadbeef;
+  let b = 0x41c6ce57;
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    a = Math.imul(a ^ c, 2654435761);
+    b = Math.imul(b ^ c, 1597334677);
+  }
+  a = Math.imul(a ^ (a >>> 16), 2246822507) ^ Math.imul(b ^ (b >>> 13), 3266489909);
+  b = Math.imul(b ^ (b >>> 16), 2246822507) ^ Math.imul(a ^ (a >>> 13), 3266489909);
+  return (4294967296 * (2097151 & b) + (a >>> 0)).toString(36);
+}
+
 export class ReviewStore {
   constructor(albumId, view) {
     this.albumId = albumId;
@@ -18,6 +32,7 @@ export class ReviewStore {
     const review = view.review ?? { decisions: [], stats: null, groups: [], singles: [], duplicates: [], facts: {} };
     for (const d of review.decisions) this.decisions.set(d.id, d);
     this.stats = review.stats;
+    this.done = new Set(review.done ?? []);
     this.setStructure(review);
   }
 
@@ -39,6 +54,35 @@ export class ReviewStore {
     });
     this.copyOf = new Map();
     for (const b of this.copyBundles) for (const id of b.ids.slice(1)) this.copyOf.set(id, b);
+  }
+
+  /** Identity of a stack: members and proposals. Another proposal needs a new confirmation. */
+  groupSig(g) {
+    const ids = [...g.ids].sort((a, b) => a - b);
+    return `${ids.length}-${hash(ids.map((id) => `${id}${this.decision(id).auto ? "k" : "r"}`).join(","))}`;
+  }
+
+  isDone(g) { return this.done.has(this.groupSig(g)); }
+
+  /** Confirm a stack (or open it again). Confirming also confirms its "Bitte prüfen" photos. */
+  async setDone(g, done) {
+    const sig = this.groupSig(g);
+    if (done) {
+      this.done.add(sig);
+      const open = g.ids.filter((id) => this.decision(id).review);
+      if (open.length) this.setKeep(open, true);
+      for (const id of g.ids) this.seen?.mark(id, 8);
+    } else {
+      this.done.delete(sig);
+    }
+    this.emit({ type: "done", group: g });
+    try {
+      await api.groupDone(this.albumId, sig, done);
+    } catch (error) {
+      if (done) this.done.delete(sig); else this.done.add(sig);
+      this.emit({ type: "error", error });
+      this.emit({ type: "done", group: g });
+    }
   }
 
   subscribe(fn) {

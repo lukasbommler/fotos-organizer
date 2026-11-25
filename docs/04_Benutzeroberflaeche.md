@@ -2,7 +2,7 @@
 
 HTML-Oberfläche in einem **eigenen Programmfenster** (pywebview / Edge WebView2, D4), technisch geladen von `http://127.0.0.1:<port>`. Sprache Deutsch. Zielauflösung ab 1366 × 768 (typischer Office-Laptop), skaliert bis 4K. Bedienung vollständig mit Maus **und** Tastatur.
 
-## 0. Gestaltung (D9, D16)
+## 0. Gestaltung (D9, D16, **geändert durch D21**: drei animierte Designs, grüne/rote Rahmen)
 
 - **Nur dunkles Design**, futuristisch und professionell – ein **Präzisionsinstrument am Leuchttisch**, ausdrücklich **kein** generischer „KI-Tool“-Look (keine Lila/Blau-Verläufe, kein Glow, kein Verlaufs-Text, keine Glas-Effekte, keine Sparkle-Symbole, keine Pillen-Knöpfe). Trotzdem einfach. Kein Hell-Modus.
 - **Formensprache:** Graphit-Flächen, Haarlinien-Raster, harte Kanten (Radius ≤ 2 px), Schnittmarken-Ecken an Bildern und Panels, Messwerte als feine Instrumenten-Skalen, Metadaten in Monospace mit Tabellenziffern, Bildnummern wie auf dem Filmstreifen („024“).
@@ -64,13 +64,13 @@ HTML-Oberfläche in einem **eigenen Programmfenster** (pywebview / Edge WebView2
 - **Alle** – zeitliche Gesamtansicht aller Bilder mit Status.
 - Filter: „nur mit Personen“, „nur geänderte“, „nur manuell geändert“.
 
-**Bündel (zugeklappt):** gestapelte Mini-Vorschauen (oberstes Bild = Rang 0), darunter Gruppennummer, Anzahl, Anzahl behalten, Symbole (👤 Personen, ⚠ enthält „Bitte prüfen“, ✋ manuell geändert). Sonderbündel „Belichtungsreihe“ / „Panorama-Serie“ / „Exakte Kopien“ mit eigenem Symbol. Klick klappt das Bündel auf (Animation über `transform`), ein zweiter Klick oder Esc klappt es zu. Mehrere Bündel können gleichzeitig offen sein.
+**Bündel (zugeklappt):** gestapelte Mini-Vorschauen (oberstes Bild = Rang 0), darunter Gruppennummer, Anzahl, Anzahl behalten, Symbole (👤 Personen, ⚠ enthält „Bitte prüfen“, ✋ manuell geändert). Sonderbündel „Belichtungsreihe“ / „Panorama-Serie“ / „Exakte Kopien“ mit eigenem Symbol. Klick klappt das Bündel auf (Animation über `transform`), ein zweiter Klick oder Esc klappt es zu. Höchstens ein Bündel ist offen; „Stapel bestätigen“ (B) markiert es als erledigt und öffnet das nächste (A35).
 
 **Bündel (aufgeklappt):** Kopf mit Nummer, Anzahl, behalten, Zeitspanne, Symbole; Serien innerhalb der Gruppe durch kleinen Abstand sichtbar. Bei großen Gruppen erste Zeile + „weitere 14 anzeigen“.
 
 **Kachel (≈ 160 px, mit Strg + Mausrad / Knopf in 3 Größen: 120/160/240 px):**
-- Behalten: normal, Fettstift-Kreis-Markierung (D16).
-- Aussortiert: abgedunkelt (Deckkraft 45 %), Fettstift-Strich/Kreuz, Begründung als Tooltip und unter der Kachel in 1 Zeile (abgeschnitten).
+- Behalten: grüner Rahmen, ✓ neben der Bildnummer (D21).
+- Aussortiert: roter Rahmen, ✕, leicht abgedunkelt (Deckkraft 60 %), Begründung als Tooltip und unter der Kachel in 1 Zeile (abgeschnitten).
 - „Bitte prüfen“: Amber-Randmarke + Ausrufezeichen.
 - Manuell geändert: kleines Hand-Symbol.
 - Geschützt (Sterne): ★.
@@ -82,7 +82,9 @@ HTML-Oberfläche in einem **eigenen Programmfenster** (pywebview / Edge WebView2
 | Aktion | Maus | Tastatur |
 |---|---|---|
 | Entscheidung umdrehen | Klick auf Kachel | Leertaste |
-| Behalten / aussortieren erzwingen | Rechtsklick-Menü | K / X |
+| Behalten / aussortieren erzwingen | Menü-Taste | K / X |
+| XL-Ansicht neben dem Stapel (A35) | Rechtsklick; schließt mit Rechtsklick oder Klick auf ein Bild | Esc schließt |
+| Stapel bestätigen (A35) | Knopf „Stapel bestätigen“ | B |
 | „Bitte prüfen“ bestätigen (A34) | Rechtsklick-Menü „Geprüft – behalten“ | K |
 | Bündel auf-/zuklappen | Klick auf Bündel | Enter / Esc |
 | Großansicht | Doppelklick | Enter (auf Kachel) |
@@ -133,6 +135,8 @@ Dialog „Übernehmen“:
 | POST | `/api/album/{id}/settings` | Modus, Zielquote, Gruppierungsstärke, Optionen → Diff |
 | POST | `/api/album/{id}/decision` | `{photo_id | photo_ids, manual: keep|reject|null}` → Diff (mehrere Bilder für Gruppen-Aktionen) |
 | POST | `/api/album/{id}/seen` | `{items: [[Bild, Art, gezeigter Vorschlag]]}` – angesehene Bilder (A34) |
+| POST | `/api/album/{id}/group-done` | `{sig, done}` – Stapel bestätigt / wieder offen (A35) |
+| GET/POST | `/api/prefs` | Programmeinstellungen (Design, D21) |
 | POST | `/api/album/{id}/rethin` | „Erneut ausdünnen“ eines übernommenen Albums |
 | GET | `/api/album/{id}/photo/{pid}/thumb?size=s|l&v=…` | Vorschau (Foto-IDs gelten je Album, A18) |
 | GET | `/api/album/{id}/photo/{pid}/full` | Original aufrecht als JPEG (100 %-Zoom, A31) |

@@ -270,6 +270,7 @@ class Review:
             return {
                 "decisions": [self._state_json(pid, st) for pid, st in self.last.items()],
                 "stats": self._stats(d, settings),
+                "done": self.done(),
                 **self._structure(layout),
             }
 
@@ -304,6 +305,14 @@ class Review:
             engine, _, settings, d, _ = self._compute()
             ids = [int(engine.inp.ids[i]) for i in np.flatnonzero(~d.keep)]
             return ids, self._stats(d, settings)
+
+    def done(self) -> list[str]:
+        with contextlib.closing(self.store.connect()) as conn:
+            return self.store.done_groups(conn)
+
+    def set_group_done(self, sig: str, done: bool) -> None:
+        with contextlib.closing(self.store.connect()) as conn:
+            self.store.set_group_done(conn, sig, done)
 
     def add_seen(self, items: list[tuple[int, int, bool]]) -> None:
         """Photos the user looked at (D20); without a proposal there is nothing to agree with."""

@@ -10,6 +10,7 @@ import { ReviewStore } from "./store.js";
 import { decisionTile, TileRegistry } from "./tiles.js";
 import { fill, fmt, h, throttle } from "./util.js";
 import { openViewer } from "./viewer.js";
+import { createXl } from "./xl.js";
 
 const QUALITY = new Set(["rating_rejected", "misfire", "overexposed", "underexposed", "blur", "blur_review", "person_quality"]);
 const LEVEL_NAMES = ["sehr fein", "fein", "mittel", "grob", "sehr grob"];
@@ -19,9 +20,9 @@ const TABS = [
   ["singles", "Einzelbilder"],
   ["all", "Alle"],
 ];
-const HINT = "Klick: umdrehen · Doppelklick / Enter: Großansicht · Strg + Klick: zum Vergleich wählen · Rechtsklick: Menü · Strg + Z: zurück";
+const HINT = "Klick: umdrehen · Rechtsklick: groß · Doppelklick: Vollbild · B: Stapel bestätigen · Strg + Klick: vergleichen · Strg + Z: zurück";
 
-const prefs = { tab: "groups", tileSize: 1, filters: { people: false, changed: false, manual: false } };
+const prefs = { tab: "groups", tileSize: 1, filters: { people: false, changed: false, manual: false, open: false } };
 
 /** Mount the review screen into `main`. `ctx` = {setStatus, setCrumb, setFooter, startScreen, reload}. */
 export function mountReview(main, view, ctx) {
@@ -30,6 +31,7 @@ export function mountReview(main, view, ctx) {
   const seen = new SeenTracker(store, sheet);
   store.seen = seen;
   const registry = new TileRegistry(seen);
+  const xl = createXl(store);
   const selection = new Set();
   let current = null; // {kind, destroy, ids?, bundles?, sheet?}
   let menu = null;
@@ -112,11 +114,15 @@ export function mountReview(main, view, ctx) {
     return true;
   };
 
-  function visibleGroups() {
+  function allBundles() {
     const groups = store.groups.filter((g) =>
-      g.kind === "bracket" || g.kind === "pano" || g.ids.some((id) => !store.decision(id).keep));
-    return [...groups, ...store.copyBundles]
-      .filter((g) => g.ids.some(passes))
+      g.kind === "bracket" || g.kind === "pano" || g.ids.some((id) => !store.decision(id).keep) || store.isDone(g));
+    return [...groups, ...store.copyBundles];
+  }
+
+  function visibleGroups() {
+    return allBundles()
+      .filter((g) => g.ids.some(passes) && !(prefs.filters.open && store.isDone(g)))
       .sort((a, b) => (a.start ?? 0) - (b.start ?? 0));
   }
 
@@ -201,11 +207,37 @@ export function mountReview(main, view, ctx) {
     });
   }
 
-  const filterBoxes = [["people", "nur mit Personen"], ["changed", "nur geänderte"], ["manual", "nur von Hand geändert"]].map(([key, label]) => {
+  const filterBoxes = [["people", "nur mit Personen"], ["changed", "nur geänderte"], ["manual", "nur von Hand geändert"], ["open", "nur offene Stapel"]].map(([key, label]) => {
     const input = h("input", { type: "checkbox", id: `f-${key}`, checked: prefs.filters[key],
       onchange: (e) => { prefs.filters[key] = e.target.checked; showTab(prefs.tab); } });
     return h("label.check.small", { for: `f-${key}` }, input, h("span.box", { "aria-hidden": "true" }), label);
   });
+
+  const doneBar = h("span.done-fill");
+  const doneText = h("span.mono");
+  const doneCount = h("span.done-count", { hidden: true }, h("span.done-track", { "aria-hidden": "true" }, doneBar), doneText);
+  function renderDone() {
+    const all = prefs.tab === "groups" ? allBundles() : [];
+    const n = all.filter((g) => store.isDone(g)).length;
+    doneCount.hidden = !all.length;
+    doneText.textContent = `${fmt.num(n)} von ${fmt.num(all.length)} Stapeln erledigt`;
+    doneBar.style.transform = `scaleX(${all.length ? n / all.length : 0})`;
+    doneCount.classList.toggle("is-complete", all.length > 0 && n === all.length);
+  }
+
+  /** "Stapel bestätigen": mark it, close it and step into the next open one. */
+  function confirmGroup(g) {
+    const bundles = current?.bundles;
+    if (!bundles) return;
+    store.setDone(g, true);
+    const next = bundles.nextOpen(g);
+    if (next) {
+      bundles.toggle(next.g, true);
+    } else {
+      bundles.toggle(g);
+      flash("Alle Stapel bestätigt – weiter mit dem Reiter „Qualität“ oder „Übernehmen …“.", 10000);
+    }
+  }
 
   const notice = h("p.notice", { hidden: true });
   function renderNotice() {
@@ -254,7 +286,7 @@ export function mountReview(main, view, ctx) {
       quota, strength),
     h("div.subbar", {},
       h("div.filters", {}, filterBoxes),
-      selectionBar, notice,
+      doneCount, selectionBar, notice,
       h("span.grow"),
       h("div.segmented", { role: "group", "aria-label": "Kachelgröße" }, sizeButtons),
       h("button.ghost.small", { type: "button", onclick: ctx.startScreen }, "Anderes Album")),
@@ -270,6 +302,7 @@ export function mountReview(main, view, ctx) {
     current?.destroy?.();
     registry.clear();
     closeMenu();
+    xl.close();
     const items = tabItems(key);
     const total = store.photos.length;
     sheet.scrollTop = 0;
@@ -278,7 +311,7 @@ export function mountReview(main, view, ctx) {
         sheet.replaceChildren(h("p.empty", {}, store.stats ? emptyGroupsText() : "Noch keine Analyse – keine Gruppen."));
         current = { kind: "empty" };
       } else {
-        const bundles = renderBundles(store, items.groups, { registry, groupMenu });
+        const bundles = renderBundles(store, items.groups, { registry, groupMenu, confirm: confirmGroup, onToggle: () => xl.close() });
         sheet.replaceChildren(bundles.el);
         current = { kind: "bundles", bundles, destroy: bundles.destroy };
         sheet.querySelector(".bundle")?.focus({ preventScroll: true });
@@ -297,13 +330,14 @@ export function mountReview(main, view, ctx) {
     }
     renderSelection();
     renderCounts();
+    renderDone();
   }
 
   function emptyGroupsText() {
     if (store.stats.hold) return "Album übernommen – alle verbliebenen Bilder gelten als behalten. „Erneut ausdünnen“ macht neue Vorschläge.";
     return store.stats.mode === "clean"
       ? "Keine Serien mit fast gleichen Bildern zum Ausdünnen. Ähnliche Motive bleiben in diesem Modus unangetastet – alle Bilder unter „Alle“."
-      : "Keine Gruppe mit aussortierten Bildern.";
+      : prefs.filters.open ? "Alle Stapel sind bestätigt." : "Keine Gruppe mit aussortierten Bildern.";
   }
   function emptyText(key) {
     if (Object.values(prefs.filters).some(Boolean)) return "Kein Bild passt zum Filter.";
@@ -315,6 +349,7 @@ export function mountReview(main, view, ctx) {
     const photos = ids.map((id) => store.byId.get(id)).filter(Boolean);
     if (!photos.length) return;
     closeMenu();
+    xl.close();
     openViewer({ albumId: store.albumId, photos, index, store, onClose: (id) => focusId(id) });
   }
 
@@ -399,6 +434,7 @@ export function mountReview(main, view, ctx) {
     const id = Number(tile.dataset.id);
     if (e.ctrlKey || e.metaKey) { toggleSelect(id); return; }
     if (e.detail > 1) return;
+    if (xl.isOpen) { xl.close(); lastClick = { id: null, time: 0 }; return; } // the click only closes XL
     lastClick = { id, time: performance.now() };
     store.toggle(id);
   });
@@ -410,11 +446,12 @@ export function mountReview(main, view, ctx) {
     openFromTile(tile);
   });
   sheet.addEventListener("contextmenu", (e) => {
-    const tile = e.target.closest(".tile.decided");
-    if (!tile) return;
     e.preventDefault();
+    const tile = e.target.closest(".tile.decided");
+    if (menu || !tile) { if (!tile) xl.close(); return; }
+    const same = xl.id === Number(tile.dataset.id);
     tile.focus({ preventScroll: true });
-    tileMenu(tile, e.clientX, e.clientY);
+    if (same) xl.close(); else xl.open(tile);
   });
   sheet.addEventListener("mouseover", (e) => {
     const tile = e.target.closest(".tile");
@@ -470,6 +507,12 @@ export function mountReview(main, view, ctx) {
     if (tile && (k === "k" || k === "K")) { e.preventDefault(); store.setKeep([id], true); return; }
     if (tile && (k === "x" || k === "X")) { e.preventDefault(); store.setKeep([id], false); return; }
     if (k === "c" || k === "C") { e.preventDefault(); compare(); return; }
+    if (k === "Escape" && xl.isOpen) { e.preventDefault(); xl.close(); return; }
+    if (k === "b" || k === "B") {
+      const g = current?.bundles?.openGroup();
+      if (g && !store.isDone(g)) { e.preventDefault(); confirmGroup(g); }
+      return;
+    }
     if (tile && k === "ContextMenu") { e.preventDefault(); const r = tile.getBoundingClientRect(); tileMenu(tile, r.left + 20, r.top + 20); return; }
     if (current?.kind !== "bundles") return; // grid tabs: arrows, Enter in grid.js
     if (tile && k === "Enter") { e.preventDefault(); openFromTile(tile); return; }
@@ -504,8 +547,9 @@ export function mountReview(main, view, ctx) {
     if (e.ctrlKey && (e.key === "z" || e.key === "Z")) {
       e.preventDefault();
       if (!store.undo()) flash("Nichts zum Zurücknehmen.");
-    } else if (e.key === "Escape" && menu) {
+    } else if (e.key === "Escape" && (menu || xl.isOpen)) {
       closeMenu();
+      xl.close();
     }
   }
   document.addEventListener("keydown", onGlobalKey);
@@ -516,8 +560,14 @@ export function mountReview(main, view, ctx) {
       flash(`Änderung nicht gespeichert: ${event.error.message}`, 8000);
       return;
     }
+    if (event.type === "done") {
+      current?.bundles?.refreshGroup(event.group);
+      renderDone();
+      return;
+    }
     renderSettings();
     renderBanner();
+    xl.render();
     if (event.structure) {
       showTab(prefs.tab);
       return;
@@ -525,6 +575,7 @@ export function mountReview(main, view, ctx) {
     registry.update(store, event.ids);
     current?.bundles?.refresh(event.ids);
     renderCounts();
+    renderDone();
   });
 
   ctx.setStatus(HINT);
@@ -537,6 +588,7 @@ export function mountReview(main, view, ctx) {
     destroy() {
       unsubscribe();
       seen.destroy();
+      xl.close();
       clearTimeout(flashTimer);
       current?.destroy?.();
       document.removeEventListener("keydown", onGlobalKey);

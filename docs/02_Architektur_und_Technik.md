@@ -115,7 +115,7 @@ FotoDuenner/
 │   │   ├── security.py         # Token → Cookie, Header- und Host-Prüfung (T12)
 │   │   ├── state.py            # geöffnete Alben, laufende Analyse
 │   │   └── review.py           # Prüf-Übersicht: Vorschläge, Einstellungen, Klicks → Diff (A30)
-│   └── web/                    # index.html, styles.css, review.css, js/ (app, review, store, bundles, tiles, grid, viewer, compare, marks, dialogs, seen), fonts/ (OFL), mockup/
+│   └── web/                    # index.html, styles.css, review.css, designs.css, js/ (app, review, store, bundles, tiles, grid, viewer, xl, compare, marks, dialogs, seen, design, hud/), fonts/ (OFL), mockup/
 └── tests/
     ├── fixtures/               # Generator + kleine CC0-Testbilder (siehe 05)
     └── test_*.py
@@ -196,6 +196,7 @@ batches(
   count_before INTEGER           -- Bilder im Album vor dem Vorgang (T2)
 )
 seen(photo_id INTEGER PRIMARY KEY, how INTEGER, shown INTEGER)  -- angesehen, nur für die Kalibrierung (A34)
+done_groups(sig TEXT PRIMARY KEY, at REAL)  -- bestätigte Stapel (A35)
 settings(key TEXT PRIMARY KEY, value TEXT)
   -- mode ('clean' | 'quota'), Zielquote, Gruppierungsstärke, Optionen,
   -- applied ('0' | '1') + count_before (Status "übernommen", T2),
