@@ -16,7 +16,7 @@ from fotoduenner.api.review import Review
 from fotoduenner.apply import mover, protocol
 from fotoduenner.apply.undo import UndoError, last_batch, recover, undo
 from fotoduenner.config import DEFAULT, Config
-from fotoduenner.paths import albums_dir, data_dir, long_path
+from fotoduenner.paths import albums_dir, long_path
 from fotoduenner.pipeline.quality import Quality, exposure_score
 from fotoduenner.pipeline.runner import (
     Progress,
@@ -622,27 +622,6 @@ class AppState:
             "faces": json.loads(row["faces"] or "[]"),
             "faces_native": row["faces_native"],
         }
-
-    # --- preferences of the program ---------------------------------------------------------
-
-    def _prefs_path(self) -> Path:
-        return (self.data_root or data_dir()) / "prefs.json"
-
-    def prefs(self) -> dict[str, Any]:
-        try:
-            data = json.loads(self._prefs_path().read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            return {}
-        return data if isinstance(data, dict) else {}
-
-    def set_prefs(self, changes: dict[str, Any]) -> dict[str, Any]:
-        with self._lock:
-            data = {**self.prefs(), **changes}
-            path = self._prefs_path()
-            tmp = path.with_name("prefs.json.tmp")
-            tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
-            tmp.replace(path)
-        return data
 
     def recent(self) -> list[dict[str, Any]]:
         root = albums_dir(self.data_root)

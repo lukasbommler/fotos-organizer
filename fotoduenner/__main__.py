@@ -30,7 +30,7 @@ log = logging.getLogger("fotoduenner.launcher")
 
 HOST = "127.0.0.1"  # never bind to anything else (CLAUDE.md rule 3)
 WINDOW_TITLE = "FotoDünner"
-BACKGROUND = "#0c0d0e"
+BACKGROUND = "#04090d"
 SERVER_START_TIMEOUT_S = 15.0
 GRACEFUL_SHUTDOWN_S = 2
 

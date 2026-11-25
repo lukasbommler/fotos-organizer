@@ -29,8 +29,6 @@ async function request(method, path, body) {
 
 export const api = {
   version: () => request("GET", "/api/version"),
-  prefs: () => request("GET", "/api/prefs"),
-  setPrefs: (changes) => request("POST", "/api/prefs", changes),
   recent: () => request("GET", "/api/recent"),
   pickFolder: () => request("POST", "/api/pick-folder"),
   open: (path, recursive) => request("POST", "/api/album/open", { path, recursive }),

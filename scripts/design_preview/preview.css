@@ -1,27 +1,23 @@
-/* Only for the design previews: page shell, jump bar, narrow screens. */
+/* Only for the preview page: page shell, jump bar, narrow screens. */
 html { height: 100%; background: var(--graphite-0); }
 body { height: 100%; background: var(--graphite-0); color: var(--paper); isolation: isolate; font-family: var(--font-ui); font-size: 15px; }
 .bar { padding-left: max(1.25rem, env(safe-area-inset-left, 0px)); padding-right: max(1.25rem, env(safe-area-inset-right, 0px)); }
-.designs { gap: 0; }
+.designs { display: inline-flex; margin-left: auto; }
 .jump { min-height: 1.9rem; padding: 0 0.85rem; background: transparent; border: 1px solid var(--hairline-strong); font-size: 0.78rem; color: var(--paper-dim); cursor: pointer; }
 .jump + .jump { border-left: 0; }
 .jump:hover { color: var(--paper); background: var(--graphite-2); }
-.jump[aria-current="true"] { background: var(--amber); border-color: var(--amber); color: var(--amber-ink); font-weight: 600; }
+.jump[aria-current="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
 .bar > .readout { display: none; }
-.bar:has(#tally:not([hidden])) .design-label { display: inline; }
 
 @media (max-width: 900px) {
   .bar { flex-wrap: wrap; gap: 0.5rem 1rem; white-space: normal; }
   .bar.status .status-text { display: none; }
   .tally-head { order: 3; }
   .designs { margin-left: 0; }
-  .hud, :root[data-design] .hud { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-template-areas: "title" "core" "side" "foot"; overflow: hidden auto; align-content: start; }
-  :root[data-design] .hud .lead { max-width: none; }
+  .hud { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-template-areas: "title" "core" "side" "foot"; overflow: hidden auto; align-content: start; }
+  .hud .lead { max-width: none; }
   .hud-title, .hud-side { padding-right: 0; }
-  :root[data-design="orbit"] .hud-core { min-height: 21rem; max-width: 12rem; align-content: center; }
-  :root[data-design="holo"] .hud-core { min-width: 0; margin-top: 15rem; }
-  :root[data-design="nova"] .hud-core { margin-top: 13rem; }
-  :root[data-design="nova"] .hud .percent { font-size: 4.5rem; }
+  .hud-core { min-height: 21rem; max-width: 12rem; align-content: center; }
   .hud .recent-list { max-height: none; }
   .hud-core { width: auto; }
   .toolbar, .subbar { gap: 0.6rem 1rem; padding-inline: 1rem; }

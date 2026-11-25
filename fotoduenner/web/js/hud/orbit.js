@@ -1,4 +1,4 @@
-// Design 1 "Reaktor": concentric instrument rings around a glowing core. Photos fly in, are
+// "Reaktor": concentric instrument rings around a glowing core. Photos fly in, are
 // scanned in orbit and drawn into the ring, whose ticks are the real progress.
 import { clamp, easeInOut, easeOut, glowSprite, lerp } from "./util.js";
 
@@ -30,24 +30,25 @@ export function orbit() {
   function photo(ctx, f, S, x, y, R) {
     const k = (S.t - f.born) / scene.photoLife;
     const angle = DOCKS[f.n % DOCKS.length] + Math.sin(f.n * 1.7) * 0.06;
+    const turn = Math.sign(Math.cos(angle) * Math.sin(angle)); // from above/below, never across the text columns
     const w = R * 0.5;
     const ringAngle = -Math.PI / 2 + S.p * TAU;
     let px; let py; let scale = 1; let alpha = 1;
     if (k < 0.24) {
       const e = easeOut(k / 0.24);
       const d = lerp(2.5, 1.48, e) * R;
-      px = x + Math.cos(angle + (1 - e) * 0.9) * d;
-      py = y + Math.sin(angle + (1 - e) * 0.9) * d;
+      px = x + Math.cos(angle + turn * (1 - e) * 0.9) * d;
+      py = y + Math.sin(angle + turn * (1 - e) * 0.9) * d;
       alpha = e;
       scale = lerp(0.4, 1, e);
     } else if (k < 0.76) {
-      const drift = (k - 0.24) * 0.12;
+      const drift = turn * (k - 0.24) * 0.12;
       px = x + Math.cos(angle + drift) * R * 1.48;
       py = y + Math.sin(angle + drift) * R * 1.48;
     } else {
       const e = easeInOut((k - 0.76) / 0.24);
-      const sx = x + Math.cos(angle + 0.0624) * R * 1.48;
-      const sy = y + Math.sin(angle + 0.0624) * R * 1.48;
+      const sx = x + Math.cos(angle + turn * 0.0624) * R * 1.48;
+      const sy = y + Math.sin(angle + turn * 0.0624) * R * 1.48;
       px = lerp(sx, x + Math.cos(ringAngle) * R * 1.0, e);
       py = lerp(sy, y + Math.sin(ringAngle) * R * 1.0, e);
       scale = lerp(1, 0.04, e);

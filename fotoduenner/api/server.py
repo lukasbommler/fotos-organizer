@@ -23,10 +23,6 @@ SSE_INTERVAL_S = 0.5  # at most two updates per second (04 §1.3)
 THUMB_CACHE = "private, max-age=31536000, immutable"  # URLs carry a version parameter
 
 
-class PrefsRequest(BaseModel):
-    design: Literal["orbit", "holo", "nova"]
-
-
 class AnalyzeRequest(BaseModel):
     skip_offline: bool = False
 
@@ -92,14 +88,6 @@ def create_app(
     @app.get("/api/version")
     def version() -> dict[str, str]:
         return {"version": __version__}
-
-    @app.get("/api/prefs")
-    def prefs() -> dict[str, Any]:
-        return state.prefs()
-
-    @app.post("/api/prefs")
-    def set_prefs(body: PrefsRequest) -> dict[str, Any]:
-        return state.set_prefs(body.model_dump())
 
     @app.get("/api/recent")
     def recent() -> list[dict[str, Any]]:

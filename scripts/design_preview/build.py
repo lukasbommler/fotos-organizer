@@ -1,7 +1,7 @@
-"""Bundle the real frontend with an invented album into one self-contained page per design.
+"""Bundle the real frontend with an invented album into one self-contained page.
 
     uv run python scripts/design_preview/build.py OUT_DIR
-Only for showing the designs; the pages contain no photos and no data of the user.
+Only for showing the program; the page contains no photos and no data of the user.
 """
 
 from __future__ import annotations
@@ -14,18 +14,15 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 WEB = HERE.parent.parent / "fotoduenner" / "web"
 JS = WEB / "js"
-DESIGNS = {
-    "orbit": ("reaktor", "FotoDünner Reaktor"),
-    "holo": ("scanner", "FotoDünner Scanner"),
-    "nova": ("sternkarte", "FotoDünner Sternkarte"),
-}
+TITLE = "FotoDünner Reaktor"
 IMPORT = re.compile(r'^import \{([^}]*)\} from "([^"]+)";\n', re.MULTILINE)
 EXPORT = re.compile(r"^export (?:async )?(?:const|let|class|function) (\w+)", re.MULTILINE)
 
 JUMP = """
-// preview: jump bar instead of the design switch
+// preview: jump bar to the screens
 window.__preview = { startScreen, reviewScreen, demoOpen: () => openAlbum("demo", errorLine()) };
-const slot = document.getElementById("designs");
+const slot = h("span.designs", { role: "group", "aria-label": "Bildschirme" });
+document.querySelector(".bar .readout").before(slot);
 const steps = [
   ["Start", () => startScreen()],
   ["Einlesen", () => openAlbum("demo", errorLine())],
@@ -95,8 +92,7 @@ def bundle(entry: Path) -> str:
 
 def styles() -> str:
     css = "\n".join(
-        (WEB / name).read_text(encoding="utf-8")
-        for name in ("styles.css", "review.css", "designs.css")
+        (WEB / name).read_text(encoding="utf-8") for name in ("styles.css", "review.css", "hud.css")
     )
 
     def font(match: re.Match[str]) -> str:
@@ -118,15 +114,12 @@ def main() -> int:
         "Ihre Fotos verlassen diesen Rechner nicht", "Gemalte Beispielbilder"
     )
     code, css = bundle(JS / "app.js"), styles()
-    for design, (name, title) in DESIGNS.items():
-        page = (
-            f"<title>{title}</title>\n"
-            f'<script>document.documentElement.dataset.design = "{design}";</script>\n'
-            f"<style>\n:root {{ color-scheme: dark; }}\n{css}\n</style>\n{body}\n"
-            f"<script>\n{code}\n</script>\n"
-        )
-        (out / f"fotoduenner-{name}.html").write_text(page, encoding="utf-8")
-        print(f"{name}: {len(page) // 1024} KB")
+    page = (
+        f"<title>{TITLE}</title>\n<style>\n:root {{ color-scheme: dark; }}\n{css}\n</style>\n"
+        f"{body}\n<script>\n{code}\n</script>\n"
+    )
+    (out / "fotoduenner-reaktor.html").write_text(page, encoding="utf-8")
+    print(f"{len(page) // 1024} KB")
     return 0
 
 

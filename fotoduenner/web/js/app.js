@@ -1,11 +1,12 @@
 // FotoDünner frontend: start → pre-check → analysis → contact sheet (04 §1).
 import { api, ApiError } from "./api.js";
-import { initDesign, samplePhoto, stage } from "./design.js";
 import { undoFlow } from "./dialogs.js";
+import { HudStage } from "./hud/stage.js";
 import { mountReview } from "./review.js";
 import { cropMarks, fmt, h, reducedMotion } from "./util.js";
 
 const main = document.getElementById("app");
+const stage = new HudStage(document.getElementById("hud"));
 const crumb = document.getElementById("crumb");
 const statusText = document.getElementById("status-text");
 
@@ -49,13 +50,12 @@ function show(...nodes) {
   ui.events?.close();
   ui.events = null;
   clearInterval(ui.timer);
-  clearInterval(ui.demo);
   stage.stop();
   main.className = "stage";
   main.replaceChildren(...nodes);
 }
 
-/** Screen on the animated stage: text left, the core in the middle, facts right (designs.css). */
+/** Screen on the animated stage: text left, the core in the middle, facts right (hud.css). */
 function showHud(kind, { title, core, side = [], foot = [] }, mode, extra = {}) {
   show(h("div.hud-title", {}, title), h("div.hud-core", {}, core), h("aside.hud-side", {}, side), h("div.hud-foot", {}, foot));
   main.className = `hud hud-${kind}`;
@@ -131,8 +131,7 @@ async function startScreen() {
     foot: [h("ol.steps", {},
       h("li", {}, h("span.num", {}, "01"), "Ordner wählen"),
       h("li", {}, h("span.num", {}, "02"), "Analysieren"),
-      h("li", {}, h("span.num", {}, "03"), "Prüfen & übernehmen")),
-    h("button.link.demo-link", { type: "button", onclick: demoScreen }, "Analyse-Animation ansehen")],
+      h("li", {}, h("span.num", {}, "03"), "Prüfen & übernehmen"))],
   }, "idle", { reset: true });
   pick.focus();
 
@@ -328,31 +327,6 @@ function progressScreen(info) {
   };
 }
 
-/** Preview of the animation with painted pictures; reads nothing and changes nothing. */
-function demoScreen() {
-  setCrumb("Vorschau");
-  setStatus("Vorschau mit gemalten Beispielbildern – es wird nichts analysiert");
-  const back = h("button.ghost", { type: "button", onclick: startScreen }, "Vorschau beenden");
-  const view = progressView("Vorschau", "So sieht die Analyse aus", back,
-    h("span.note", {}, "Beispiel mit 480 gemalten Bildern. Das Design lässt sich oben rechts umschalten."), errorLine());
-  const total = 480;
-  let tick = 0;
-  ui.demo = setInterval(() => {
-    tick += 1;
-    const k = tick % 190; // 8 ticks per second: scan, analysis, faces, done, again
-    if (k < 14) view.update({ stage: "scan", done: 0, total: 0 });
-    else if (k < 134) {
-      const done = Math.round(((k - 14) / 120) * total);
-      view.update({ stage: "analyze", done, total, eta_seconds: (134 - k) / 8, current_file: `Beispiel/IMG_${String(done).padStart(4, "0")}.jpg` });
-      if (k % 3 === 0) stage.addPhoto(samplePhoto(done));
-    } else if (k < 174) {
-      view.update({ stage: "faces", done: Math.round(((k - 134) / 40) * 60), total: 60, eta_seconds: (174 - k) / 8, current_file: "Beispiel" });
-      if (k % 3 === 0) stage.addPhoto(samplePhoto(k));
-    } else if (k === 174) stage.set({ mode: "done" });
-    else if (k === 188) stage.set({ mode: "scan", reset: true });
-  }, 125);
-}
-
 function cancelledScreen(info, progress) {
   setStatus("Analyse angehalten");
   const done = (progress?.done ?? 0) + info.cached;
@@ -390,6 +364,5 @@ async function reviewScreen(albumId) {
 
 // ── boot ──────────────────────────────────────────────────────────────────────────
 
-await initDesign(document.getElementById("designs"));
 api.version().then((v) => { document.getElementById("version").textContent = `v${v.version}`; }).catch(() => {});
 startScreen();

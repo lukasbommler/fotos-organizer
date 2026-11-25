@@ -317,15 +317,6 @@ def test_please_check_photo_can_be_confirmed(client: TestClient, tmp_path: Path)
     assert client.post(seen, json={"items": [[blurred, 16, True]]}, headers=POST).status_code == 422
 
 
-def test_design_choice_is_kept_by_the_program(client: TestClient, tmp_path: Path) -> None:
-    assert client.get("/api/prefs").json() == {}
-    assert client.post("/api/prefs", json={"design": "nova"}, headers=POST).status_code == 200
-    assert client.post("/api/prefs", json={"design": "pink"}, headers=POST).status_code == 422
-    fresh = _client()  # next start: new port, new session
-    fresh.get(f"/?t={TOKEN}")
-    assert fresh.get("/api/prefs").json() == {"design": "nova"}
-
-
 def test_confirmed_stacks_are_kept_per_album(client: TestClient, tmp_path: Path) -> None:
     album = tmp_path / "Album"
     for k in range(2):

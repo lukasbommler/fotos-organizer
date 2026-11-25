@@ -2,12 +2,12 @@
 
 HTML-Oberfläche in einem **eigenen Programmfenster** (pywebview / Edge WebView2, D4), technisch geladen von `http://127.0.0.1:<port>`. Sprache Deutsch. Zielauflösung ab 1366 × 768 (typischer Office-Laptop), skaliert bis 4K. Bedienung vollständig mit Maus **und** Tastatur.
 
-## 0. Gestaltung (D9, D16, **geändert durch D21**: drei animierte Designs, grüne/rote Rahmen)
+## 0. Gestaltung (D9, D16, **geändert durch D21**: „Reaktor“, grüne/rote Rahmen)
 
-- **Nur dunkles Design**, futuristisch und professionell – ein **Präzisionsinstrument am Leuchttisch**, ausdrücklich **kein** generischer „KI-Tool“-Look (keine Lila/Blau-Verläufe, kein Glow, kein Verlaufs-Text, keine Glas-Effekte, keine Sparkle-Symbole, keine Pillen-Knöpfe). Trotzdem einfach. Kein Hell-Modus.
-- **Formensprache:** Graphit-Flächen, Haarlinien-Raster, harte Kanten (Radius ≤ 2 px), Schnittmarken-Ecken an Bildern und Panels, Messwerte als feine Instrumenten-Skalen, Metadaten in Monospace mit Tabellenziffern, Bildnummern wie auf dem Filmstreifen („024“).
-- **Farbe:** Graphit-Grautöne + warmes Papierweiß für Text; **eine** Signalfarbe (Dunkelkammer-Amber) nur für Fokus, aktive Elemente und die Hauptaktion. Behalten/Aussortieren/Prüfen zusätzlich über Form unterscheidbar (nicht nur Farbe).
-- **Entscheidungs-Markierungen wie auf einem Kontaktbogen:** behalten = Fettstift-Kreis, aussortiert = Fettstift-Strich/Kreuz, „Bitte prüfen“ = Ausrufezeichen am Rand. Dieses Bild kennt jeder Fotograf und macht den Zustand ohne Legende verständlich.
+- **Nur dunkles Design „Reaktor“ (D21):** eisblaue Instrumenten-Optik auf fast schwarzem Grund, abgeschrägte Ecken, technische Eckmarken, Metadaten in Monospace mit Tabellenziffern. Keine Lila-Verläufe, keine Funkel-Symbole, keine Pillen-Knöpfe. Kein Hell-Modus.
+- **Farbe:** eine Signalfarbe (Eisblau) für Fokus, aktive Elemente und Hauptaktion. **Grün = behalten, Rot = aussortieren, Gelb = „Bitte prüfen“**; zusätzlich ✓/✕/! als Zeichen, damit Farbe nicht das einzige Merkmal ist.
+- **Nichts liegt über dem Bild:** Die Entscheidung zeigt der Rahmen.
+- **Animierte Bühne** (Start, Vorprüfung, Analyse): nur echte Werte und echte Vorschauen; sparsam (höchstens 30 Bilder/s, Pause bei verdecktem Fenster).
 - Dezente Animationen (Bündel aufklappen, Statuswechsel, Fortschritt). **Nur `transform` und `opacity` animieren**, damit das Scrollen mit 2.000 Bildern flüssig bleibt; `prefers-reduced-motion` respektieren.
 - **Alles auf einen Blick:** Gruppen erscheinen als kompakte **Bündel** – gestapelte Mini-Vorschauen (wie ein kleiner Fotostapel), die sich per Klick aufklappen.
 - Ein Mockup der Bündel-Ansicht wird in M2 erstellt und vor M5 abgestimmt (A5).
@@ -29,7 +29,7 @@ HTML-Oberfläche in einem **eigenen Programmfenster** (pywebview / Edge WebView2
 
 ### 1.3 Analyse läuft
 - Fortschrittsbalken mit Stufe („Bilder einlesen und prüfen“, „Gesichter genauer prüfen“, „Gruppen bilden“), Zähler, Restzeit.
-- Darunter wachsendes Raster der fertigen Vorschauen (gibt Gefühl von Fortschritt; Aktualisierung max. 2×/s).
+- Fertige Vorschauen fliegen in den Ring (D21; Aktualisierung max. 2×/s); daneben Restzeit, Laufzeit, Tempo, aktuelles Bild.
 - Knopf **„Abbrechen“** (Fortsetzen später möglich).
 
 ### 1.4 Prüf-Übersicht (Hauptbildschirm)
@@ -136,7 +136,6 @@ Dialog „Übernehmen“:
 | POST | `/api/album/{id}/decision` | `{photo_id | photo_ids, manual: keep|reject|null}` → Diff (mehrere Bilder für Gruppen-Aktionen) |
 | POST | `/api/album/{id}/seen` | `{items: [[Bild, Art, gezeigter Vorschlag]]}` – angesehene Bilder (A34) |
 | POST | `/api/album/{id}/group-done` | `{sig, done}` – Stapel bestätigt / wieder offen (A35) |
-| GET/POST | `/api/prefs` | Programmeinstellungen (Design, D21) |
 | POST | `/api/album/{id}/rethin` | „Erneut ausdünnen“ eines übernommenen Albums |
 | GET | `/api/album/{id}/photo/{pid}/thumb?size=s|l&v=…` | Vorschau (Foto-IDs gelten je Album, A18) |
 | GET | `/api/album/{id}/photo/{pid}/full` | Original aufrecht als JPEG (100 %-Zoom, A31) |

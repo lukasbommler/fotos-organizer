@@ -285,8 +285,6 @@ function picture(id, large) {
 
 export const api = {
   version: async () => ({ version: "Entwurf" }),
-  prefs: async () => ({ design: document.documentElement.dataset.design }),
-  setPrefs: async () => ({}),
   recent: async () => [
     { album_id: ALBUM.id, name: ALBUM.name, path: ALBUM.path, photos: photos.length, done: 0, recursive: true, applied: false },
     { album_id: "b", name: "Ostsee 2024", path: "C:\\Beispiel\\Bilder\\Ostsee 2024", photos: 618, done: 618, recursive: true, applied: true },

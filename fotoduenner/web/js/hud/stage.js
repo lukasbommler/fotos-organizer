@@ -1,16 +1,13 @@
-// Animated background of start, pre-check and analysis (D21). The stage owns canvas, clock and
-// state; a scene (orbit, holo, nova) only draws. Everything shown is real: progress, number of
+// Animated background of start, pre-check and analysis (D21, design "Reaktor"). The stage owns
+// canvas, clock and state; the scene (orbit.js) only draws. Everything shown is real: progress, number of
 // photos and the previews of photos just analysed.
 //
 // The analysis needs the CPU, so the stage is frugal: 30 fps at most, limited pixels, less when a
 // frame takes long, nothing while hidden, and a still picture with "reduced motion".
 import { reducedMotion } from "../util.js";
-import { holo } from "./holo.js";
-import { nova } from "./nova.js";
 import { orbit } from "./orbit.js";
 import { clamp, lerp } from "./util.js";
 
-const SCENES = { orbit, holo, nova };
 const MAX_PIXELS = 1.5e6;
 const FRAME_MS = [33, 50, 80]; // quality levels: full, saving, minimal
 const SLOW_DRAW_MS = 14;
@@ -32,6 +29,7 @@ export class HudStage {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
+    this.scene = orbit();
     this.state = { mode: "idle", done: 0, total: 0 };
     this.p = 0; // smoothed progress
     this.energy = 0.3; // smoothed speed of the machine
@@ -50,12 +48,6 @@ export class HudStage {
     this._visible = () => { if (this.running && !document.hidden) this._kick(); };
     addEventListener("resize", this._resize);
     document.addEventListener("visibilitychange", this._visible);
-  }
-
-  setDesign(name) {
-    this.scene = (SCENES[name] ?? orbit)();
-    this._resize();
-    this._still();
   }
 
   start() {
@@ -106,7 +98,7 @@ export class HudStage {
   }
 
   _still() {
-    if (reducedMotion() && this.running && this.scene) { this.p = this._target(); this._draw(0); }
+    if (reducedMotion() && this.running) { this.p = this._target(); this._draw(0); }
   }
 
   _target() {
