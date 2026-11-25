@@ -72,9 +72,9 @@ Jeder Meilenstein endet mit lauffähigem Stand, grünen Tests und erfüllten Abn
   - Keine einzige Lösch-Operation im Code auf Nutzerdateien (Code-Review-Check: `grep` nach `os.remove`, `unlink`, `rmtree`, `send2trash` – nur auf Cache, Protokoll-Kopie und leere Ordner erlaubt).
 
 ### M7 – Kalibrierung an echten Alben
-- In-App-Modus **„Bewertung erfassen“** (D10): alle Bilder zunächst behalten, Nutzer klickt aus, was er selbst aussortieren würde – für 300–500 zusammenhängende Bilder eines Albums. Zusätzlich visuelle Prüfung von ~30 Gruppen („gleiches Motiv?“ ja/nein). **Nicht** über Sterne im Explorer (würde Originale ändern und kollidiert mit dem Sterne-Schutz).
+- **Aufzeichnung beim Übernehmen** (D20, `store/calibration.py`): Der Nutzer dünnt ein echtes Album (Kopie) normal aus; Vorschlag, endgültige Entscheidung und Messwerte je Bild werden lokal gespeichert. Die ersten Alben gründlich prüfen (alle Gruppen und „Qualität“), je benutztem Modus mindestens ein Album.
 - Gruppierungs-Embedding (D19): Wirken Gruppen „zu thematisch“, DINOv2-small statt CLIP prüfen (`scripts/compare_grouping_embeddings.py`).
-- `scripts/calibrate.py`: Rastersuche über Kernparameter (`MOTIF_THRESHOLDS`, `MMR_LAMBDA`, `CLEAN_DISTINCT_COS`, Gewichte in 03 §6, `BLUR_ABS`) gegen die Nutzerauswahl. Metriken:
+- `scripts/calibrate.py`: Rastersuche über Kernparameter (`MOTIF_THRESHOLDS`, `MMR_LAMBDA`, `CLEAN_DISTINCT_COS`, Gewichte in 03 §6, `BLUR_ABS`) gegen die aufgezeichneten Entscheidungen. Metriken:
   - **Verlust wichtiger Bilder:** Anteil vom Nutzer behaltener Bilder, die FotoDünner aussortiert (Ziel ≤ 10 %, Personenbilder ≤ 5 %).
   - **Übereinstimmung** gesamt (F1 auf „behalten“).
   - Gruppierungsqualität: ≥ 90 % der geprüften Gruppen „gleiches Motiv“.

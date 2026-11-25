@@ -139,6 +139,8 @@ class Config:
 
     # Übernehmen / Rückgängig (02 §6): a taken name gets " (2)", " (3)" … up to this number
     name_suffix_limit: int = 999
+    # D20: store proposal + final decision at "Übernehmen" (local) for the calibration
+    calibration_records: bool = True
 
     # Analysis runtime (02 §5)
     analysis_workers: int | None = None  # None = physical cores - 1, capped by free RAM

@@ -106,6 +106,7 @@ FotoDuenner/
 │   │   └── protocol.py         # _Aussortiert\_FotoDuenner_Protokoll.json (T4)
 │   ├── store/
 │   │   ├── db.py               # Schema, Migrationen
+│   │   ├── calibration.py      # Aufzeichnung beim Übernehmen, exakt nachrechenbar (D20)
 │   │   └── cache.py            # Vorschau-Dateien
 │   ├── instance.py             # Einzelinstanz (Lock-Datei + Fokus-Anfrage, A3)
 │   ├── winplatform.py          # WebView2-Prüfung, Laufwerkstyp (USB), Meldungsfenster
@@ -129,6 +130,8 @@ FotoDuenner/
 - `thumbs\<photo_id>_l.jpg` (1600 px, für Großansicht; der 100 %-Zoom lädt das Original über die API)
 
 Vorschauen als JPEG statt WebP (deutlich schnellere Kodierung, T10).
+
+`%LOCALAPPDATA%\FotoDuenner\calibration\records.db` – Kalibrier-Aufzeichnungen (D20), bleiben beim Cache-Aufräumen erhalten.
 
 `album_id` = SHA1 des normalisierten absoluten Ordnerpfads. Zusätzlich `albums\index.json` mit Pfad → ID und letztem Zugriff (für „Zuletzt geöffnet“). Cache-Aufräumen: Alben, deren Ordner nicht mehr existiert oder > 180 Tage nicht geöffnet wurden, können in den Einstellungen gelöscht werden.
 

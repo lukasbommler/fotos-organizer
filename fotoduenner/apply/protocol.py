@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sqlite3
 import time
 from pathlib import Path, PurePosixPath
@@ -101,7 +102,10 @@ def write(root: Path, conn: sqlite3.Connection) -> None:
     }
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(PROTOCOL_NAME + ".tmp")
-    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+    with tmp.open("w", encoding="utf-8") as handle:
+        json.dump(data, handle, ensure_ascii=False, indent=1)
+        handle.flush()
+        os.fsync(handle.fileno())  # survives a power failure
     tmp.replace(path)  # own file: atomic replace of the previous copy
 
 

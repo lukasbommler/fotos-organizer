@@ -70,7 +70,6 @@ Was nie ausgedünnt wird: Belichtungsreihen und Panorama-Sequenzen (werden als G
 - Option „In Papierkorb statt `_Aussortiert`“ (über `send2trash`).
 - Export einer „Best-of“-Auswahl (z. B. 10 %) in separaten Ordner.
 - Vergleichsansicht mit synchronem Zoom, Taste F (Zoom auf Gesicht), Tastenkombinationen `G` + Taste (T14).
-- In-App-Modus „Bewertung erfassen“ für die Kalibrierung (D10, wird nach der Auswahl-Logik gebaut).
 
 ## 5. Nicht-Ziele
 - Keine Bildbearbeitung, kein Fotoverwaltungsprogramm, keine Cloud, keine Benutzerkonten.

@@ -30,6 +30,13 @@ def albums_dir(root: Path | None = None) -> Path:
     return path
 
 
+def calibration_path(root: Path | None = None) -> Path:
+    """Calibration records (D20), outside the album caches so clearing those keeps them."""
+    path = (root or data_dir()) / "calibration"
+    path.mkdir(parents=True, exist_ok=True)
+    return path / "records.db"
+
+
 def logs_dir() -> Path:
     path = data_dir() / "logs"
     path.mkdir(parents=True, exist_ok=True)

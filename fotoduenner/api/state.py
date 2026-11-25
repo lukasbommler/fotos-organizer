@@ -28,6 +28,7 @@ from fotoduenner.pipeline.runner import (
 from fotoduenner.pipeline.thumbs import full_jpeg
 from fotoduenner.pipeline.zeroshot import active_labels
 from fotoduenner.scanner.discover import REJECT_DIR, scan_album
+from fotoduenner.store import calibration
 from fotoduenner.store.db import AlbumStore, connect
 from fotoduenner.winplatform import drive_kind
 
@@ -402,6 +403,7 @@ class AppState:
             "warnings": warnings,
             "target": str(store.root / REJECT_DIR),
             "count_before": count,
+            "recorded": session.cfg.calibration_records and not stats["hold"],
         }
 
     def _claim(self, session: AlbumSession, kind: JobKind) -> Job:
@@ -470,9 +472,44 @@ class AppState:
             message = str(exc) if isinstance(exc, mover.ApplyError) else mover.failure_text(exc)
             raise ApiError(409, message) from None
         store, cfg, batch = session.store, session.cfg, job.batch_id
-        return self._launch(
-            session, job, lambda j, p: mover.run(store, batch, cfg, on_progress=p, cancel=j.cancel)
-        )
+
+        def work(j: Job, p: mover.ProgressFn) -> mover.Report:
+            self._record(session, batch, photo_ids)  # before moving: photos are still present
+            report = mover.run(store, batch, cfg, on_progress=p, cancel=j.cancel)
+            if not report.files:  # nothing moved: the user will apply again
+                self._drop_record(batch)
+            return report
+
+        return self._launch(session, job, work)
+
+    def _drop_record(self, batch_id: str) -> None:
+        """The decision does not stand (undone or nothing moved): not used for calibration."""
+        try:
+            calibration.mark_reverted(batch_id, self.data_root)
+        except Exception:
+            log.exception("calibration record not updated")
+
+    def _record(self, session: AlbumSession, batch_id: str, rejected: list[int]) -> None:
+        """Calibration record (D20). It must never keep the user from moving photos."""
+        if not session.cfg.calibration_records or session.review is None:
+            return
+        try:
+            snapshot = session.review.snapshot()
+            if snapshot is None:
+                return
+            with contextlib.closing(session.store.connect()) as conn:
+                earlier = mover.status(conn)["batches"] - 1
+            calibration.save(
+                batch_id,
+                snapshot,
+                rejected,
+                session.album_id,
+                earlier,
+                session.cfg,
+                self.data_root,
+            )
+        except Exception:
+            log.exception("calibration record failed")
 
     def start_retry(self, album_id: str, batch_id: str) -> dict[str, Any]:
         session = self.session(album_id)
@@ -495,9 +532,16 @@ class AppState:
         job = self._claim(session, "undo")
         job.batch_id = last
         store, cfg = session.store, session.cfg
-        return self._launch(
-            session, job, lambda j, p: undo(store, last, cfg, on_progress=p, cancel=j.cancel)
-        )
+
+        def work(j: Job, p: mover.ProgressFn) -> mover.Report:
+            report = undo(store, last, cfg, on_progress=p, cancel=j.cancel)
+            with contextlib.closing(store.connect()) as conn:
+                fully = last_batch(conn) != last
+            if fully:
+                self._drop_record(last)
+            return report
+
+        return self._launch(session, job, work)
 
     def job_status(self, album_id: str) -> dict[str, Any]:
         session = self.session(album_id)

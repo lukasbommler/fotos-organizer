@@ -153,6 +153,31 @@ def test_locked_file_fails_the_rest_is_moved_retry_moves_it(tmp_path: Path) -> N
     assert _status(store)["last"]["pending_count"] == 0
 
 
+@pytest.mark.skipif(os.name != "nt", reason="Windows file locking")
+def test_everything_locked_leaves_the_album_as_it_was(tmp_path: Path) -> None:
+    root = tmp_path / "Album"
+    store = _album(root, ALBUM)
+    before = _listing(root)
+    with (root / "a.jpg").open("rb"), (root / "Tag 2" / "b.jpg").open("rb"):
+        report = _apply(store, ["a.jpg", "Tag 2/b.jpg"])
+    assert report.files == 0 and report.failed_count == 2 and len(report.failed) == 2
+    assert _listing(root) == before and not (root / "_Aussortiert").exists()
+    st = _status(store)
+    assert not st["applied"] and not st["hold"] and st["last"] is None
+
+
+def test_plan_is_on_disk_before_moving(tmp_path: Path) -> None:
+    """Power failure: the plan commit must be synchronous=FULL, the rest may stay NORMAL."""
+    store = _album(tmp_path / "Album", ALBUM)
+    with contextlib.closing(store.connect()) as conn:
+        with mover.durable(conn):
+            assert conn.execute("PRAGMA synchronous").fetchone()[0] == 2
+            conn.execute("INSERT INTO settings(key, value) VALUES('x', '1')")
+        assert conn.execute("PRAGMA synchronous").fetchone()[0] == 1
+    with contextlib.closing(store.connect()) as conn:
+        assert conn.execute("SELECT value FROM settings WHERE key='x'").fetchone()[0] == "1"
+
+
 def test_changed_file_is_not_moved(tmp_path: Path) -> None:
     root = tmp_path / "Album"
     store = _album(root, ALBUM)
@@ -276,7 +301,7 @@ def test_suffix_names() -> None:
 # Code review check of 05 M6: no delete operation may touch user files.
 ALLOWED_DELETES = {
     ("apply/protocol.py", "path.unlink()"),  # own protocol copy
-    ("apply/undo.py", "os.rmdir("),  # empty folders only
+    ("apply/mover.py", "os.rmdir("),  # empty folders only
     ("instance.py", "self.info_path.unlink()"),  # program lock file
 }
 DELETE_RE = re.compile(r"os\.remove\(|os\.unlink\(|\.unlink\(|rmtree|send2trash|os\.rmdir\(")

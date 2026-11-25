@@ -20,6 +20,7 @@ from fotoduenner.pipeline.thumbs import load_gray, thumb_paths
 from fotoduenner.selection.engine import Engine, input_from_rows
 from fotoduenner.selection.modes import Decisions, Layout, Settings, hold
 from fotoduenner.selection.reasons import Reason, text
+from fotoduenner.store.calibration import Shifts, Snapshot
 from fotoduenner.store.db import AlbumStore
 
 log = logging.getLogger(__name__)
@@ -42,6 +43,7 @@ class Review:
         self.others = 0  # photos without analysis (pending, error): always kept
         self.last: dict[int, tuple[Any, ...]] = {}
         self._gray: dict[int, np.ndarray | None] = {}
+        self._shifts: Shifts = {}  # measured panorama shifts, part of the calibration record
 
     def invalidate(self) -> None:
         with self.lock:
@@ -65,13 +67,17 @@ class Review:
             present = conn.execute("SELECT COUNT(*) FROM photos WHERE present=1").fetchone()[0]
         inp = input_from_rows(rows, self.cfg)
         ids = inp.ids
+        shifts: Shifts = {}
 
         def shift(a: int, b: int) -> Shift | None:
             ga, gb = self._gray_of(int(ids[a])), self._gray_of(int(ids[b]))
-            return None if ga is None or gb is None else phase_shift(ga, gb)
+            result = None if ga is None or gb is None else phase_shift(ga, gb)
+            shifts[int(ids[a]), int(ids[b])] = result
+            return result
 
         self.engine = Engine(inp, self.cfg, shift_fn=shift)
         self._gray.clear()
+        self._shifts = shifts
         self.index = {int(pid): k for k, pid in enumerate(ids)}
         self.others = int(present) - len(ids)
         log.info(
@@ -296,6 +302,34 @@ class Review:
             engine, _, settings, d, _ = self._compute()
             ids = [int(engine.inp.ids[i]) for i in np.flatnonzero(~d.keep)]
             return ids, self._stats(d, settings)
+
+    def snapshot(self) -> Snapshot | None:
+        """Proposal and manual decisions for the calibration record (D20).
+
+        None while the album is held after an earlier "Übernehmen": there is no proposal then.
+        """
+        with self.lock:
+            if self._flags()["hold"]:
+                return None
+            engine = self._ensure()
+            settings = self._settings()
+            _, manual = self._manual()
+            auto = engine.decide(settings, {})
+            ids = engine.inp.ids
+            with contextlib.closing(self.store.connect()) as conn:
+                rows = [r for r in self.store.selection_rows(conn) if r["id"] in self.index]
+            decisions: dict[int, tuple[Any, ...]] = {}
+            for i in range(engine.n):
+                reason = auto.reasons[i]
+                ref = None if reason is None or reason.ref is None else int(ids[reason.ref])
+                decisions[int(ids[i])] = (
+                    int(auto.auto_keep[i]),
+                    int(auto.review[i]),
+                    reason.code if reason else None,
+                    ref,
+                    manual.get(i),
+                )
+            return Snapshot(settings, rows, decisions, dict(self._shifts))
 
     def rethin(self) -> dict[str, Any]:
         """ "Erneut ausdünnen" (T2): proposals again, for the photos left in the album."""

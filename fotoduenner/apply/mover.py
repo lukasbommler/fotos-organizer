@@ -16,7 +16,7 @@ import sqlite3
 import threading
 import time
 import uuid
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from dataclasses import asdict, dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -155,6 +155,21 @@ def ids_query(conn: sqlite3.Connection, sql: str, ids: Sequence[int]) -> list[sq
     return rows
 
 
+@contextlib.contextmanager
+def durable(conn: sqlite3.Connection) -> Iterator[None]:
+    """Transaction that is on the disk before anything is moved.
+
+    With the store's default (WAL, synchronous=NORMAL) a power failure may lose the last
+    commits. Harmless for "moved" (recover() looks at the files), not for the plan itself.
+    """
+    conn.execute("PRAGMA synchronous=FULL")
+    try:
+        with conn:
+            yield
+    finally:
+        conn.execute("PRAGMA synchronous=NORMAL")
+
+
 # --- album state after applying (T2) -------------------------------------------------------
 
 
@@ -216,6 +231,23 @@ def status(conn: sqlite3.Connection) -> dict[str, Any]:
     return out
 
 
+def remove_empty_dirs(store: AlbumStore, dirs: set[PurePosixPath]) -> None:
+    """Remove folders in _Aussortiert that became empty – os.rmdir only, never anything else."""
+    for rel in sorted(dirs, key=lambda p: len(p.parts), reverse=True):
+        path = rel
+        while len(path.parts) > 1:  # stop below _Aussortiert itself
+            try:
+                os.rmdir(abs_path(store.root, str(path)))  # noqa: PTH106 – empty only
+            except OSError:
+                break  # not empty (or gone): leave it
+            path = path.parent
+
+
+def remove_reject_dir_if_empty(store: AlbumStore) -> None:
+    with contextlib.suppress(OSError):
+        os.rmdir(protocol.reject_dir(store.root))  # noqa: PTH106 – fails unless empty
+
+
 # --- applying ------------------------------------------------------------------------------
 
 
@@ -249,7 +281,7 @@ def start(store: AlbumStore, photo_ids: Sequence[int], count_before: int, cfg: C
             ]
         if not entries:
             raise ApplyError("Keine Bilder zum Verschieben.")
-        with conn:
+        with durable(conn):
             conn.execute(
                 "INSERT INTO batches(batch_id, created_at, state, count_before)"
                 " VALUES(?, ?, 'running', ?)",
@@ -337,7 +369,7 @@ class _Run:
             taken - own,
             self.cfg.name_suffix_limit,
         )
-        with self.conn:
+        with durable(self.conn):
             self.conn.executemany(
                 "UPDATE journal SET dst=? WHERE id=?",
                 [(t, e["id"]) for t, e in zip(targets, group, strict=True)],
@@ -439,6 +471,9 @@ def run(
             )
             refresh_applied(conn, hold=True if moved else None)
         protocol.write(store.root, conn)
+        if not moved:  # leave no empty folders behind
+            remove_empty_dirs(store, {PurePosixPath(e["dst"]).parent for e in planned})
+            remove_reject_dir_if_empty(store)
         if on_progress:
             on_progress(Progress("apply", total, total))
     log.info(
@@ -460,7 +495,8 @@ def retry(
     cancel: threading.Event | None = None,
 ) -> Report:
     """ "Erneut versuchen": failed and interrupted entries of the batch once more."""
-    with contextlib.closing(store.connect()) as conn, conn:
+    with contextlib.closing(store.connect()) as conn, durable(conn):
+        conn.execute("UPDATE batches SET state='running' WHERE batch_id=?", (batch_id,))
         conn.execute(
             "UPDATE journal SET state='planned', error=NULL"
             " WHERE batch_id=? AND state IN ('failed', 'cancelled')",

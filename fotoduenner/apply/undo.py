@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import contextlib
 import logging
-import os
 import sqlite3
 import threading
 from pathlib import PurePosixPath
@@ -22,11 +21,14 @@ from fotoduenner.apply.mover import (
     Report,
     abs_path,
     base_stem,
+    durable,
     exists,
     failure_text,
     free_names,
     is_photo,
     refresh_applied,
+    remove_empty_dirs,
+    remove_reject_dir_if_empty,
     rename,
 )
 from fotoduenner.config import Config
@@ -51,23 +53,6 @@ def last_batch(conn: sqlite3.Connection) -> str | None:
     return None if row is None else row["batch_id"]
 
 
-def _remove_empty_dirs(store: AlbumStore, dirs: set[PurePosixPath]) -> None:
-    """Remove folders in _Aussortiert that became empty – os.rmdir only, never anything else."""
-    for rel in sorted(dirs, key=lambda p: len(p.parts), reverse=True):
-        path = rel
-        while len(path.parts) > 1:  # stop below _Aussortiert itself
-            try:
-                os.rmdir(abs_path(store.root, str(path)))  # noqa: PTH106 – empty only
-            except OSError:
-                break  # not empty (or gone): leave it
-            path = path.parent
-
-
-def _remove_reject_dir_if_empty(store: AlbumStore) -> None:
-    with contextlib.suppress(OSError):
-        os.rmdir(protocol.reject_dir(store.root))  # noqa: PTH106 – fails unless empty
-
-
 def undo(
     store: AlbumStore,
     batch_id: str,
@@ -82,7 +67,7 @@ def undo(
         batch = conn.execute("SELECT state FROM batches WHERE batch_id=?", (batch_id,)).fetchone()
         if batch is None or batch["state"] not in protocol.ACTIVE:
             raise UndoError("Dieser Vorgang ist bereits rückgängig gemacht.")
-        with conn:
+        with durable(conn):
             conn.execute("UPDATE batches SET state='undoing' WHERE batch_id=?", (batch_id,))
         entries = conn.execute(
             "SELECT * FROM journal WHERE batch_id=? AND state='moved' ORDER BY id DESC",
@@ -117,7 +102,7 @@ def undo(
                 except FileExistsError as exc:
                     report.fail(e["src"], failure_text(exc))
                     continue
-                with conn:  # journal first: a crash right after the rename stays repairable
+                with durable(conn):  # journal first: a crash after the rename is repairable
                     conn.execute("UPDATE journal SET restored=? WHERE id=?", (target, e["id"]))
             taken.add(target.casefold())
             try:
@@ -146,7 +131,7 @@ def undo(
             dirs.add(PurePosixPath(e["dst"]).parent)
             report.files += 1
             report.photos += is_photo(e["src"])
-        _remove_empty_dirs(store, dirs)
+        remove_empty_dirs(store, dirs)
         with conn:
             left = conn.execute(
                 "SELECT COUNT(*) FROM journal WHERE batch_id=? AND state='moved'", (batch_id,)
@@ -160,7 +145,7 @@ def undo(
         if not conn.execute(
             "SELECT 1 FROM batches WHERE state IN (?, ?, ?)", protocol.ACTIVE
         ).fetchone():
-            _remove_reject_dir_if_empty(store)
+            remove_reject_dir_if_empty(store)
         if on_progress:
             on_progress(Progress("undo", total, total))
     log.info(
@@ -272,5 +257,5 @@ def recover(store: AlbumStore) -> list[str]:
             if not conn.execute(
                 "SELECT 1 FROM batches WHERE state IN (?, ?, ?)", protocol.ACTIVE
             ).fetchone():
-                _remove_reject_dir_if_empty(store)
+                remove_reject_dir_if_empty(store)
     return touched

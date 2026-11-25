@@ -162,7 +162,10 @@ export async function applyFlow(albumId, onFinished) {
       ? h("p.note", {}, `Dazu ${plural(pre.files - pre.photos, "Begleitdatei", "Begleitdateien")} (.xmp), die mit ihrem Bild mitwandern.`)
       : null,
     problems.length ? h("ul.warnings", {}, problems.map((w) => h("li", {}, h("span.mark", { "aria-hidden": "true" }, "!"), w))) : null,
-    h("p.path", { title: "Zielordner" }, pre.target));
+    h("p.path", { title: "Zielordner" }, pre.target),
+    pre.recorded
+      ? h("p.note", {}, "Zur Feinabstimmung merkt sich FotoDünner Vorschlag und Ihre Entscheidung je Bild – nur auf diesem PC.")
+      : null);
   const go = h("button.primary", { type: "button", disabled: !pre.photos || pre.blocking.length > 0,
     onclick: () => dlg.run(() => api.apply(albumId, pre.photo_ids), applied) }, "Verschieben");
   fill(dlg.actions, h("button.ghost", { type: "button", onclick: dlg.close }, "Abbrechen"), go);
@@ -170,13 +173,16 @@ export async function applyFlow(albumId, onFinished) {
 
   function applied(status) {
     const report = status.job.report;
-    const last = status.apply.last;
-    dlg.titleEl.textContent = "Verschoben";
+    // nothing moved at all: the batch is closed, "Übernehmen …" can simply be used again
+    const last = status.apply.last?.batch_id === status.job.batch_id ? status.apply.last : null;
+    dlg.titleEl.textContent = report.photos || last ? "Verschoben" : "Nichts verschoben";
     fill(dlg.body,
       h("p.lead.dialog-result", {}, `${fmt.num(report.photos)} verschoben, ${fmt.num(report.failed_count)} Fehler.`),
-      h("p.note", {}, "Wenn Sie zufrieden sind, können Sie den Ordner ", h("code", {}, "_Aussortiert"),
-        " später selbst löschen. Bis dahin lässt sich alles mit „Rückgängig“ zurückholen."),
-      failureList(last?.pending ?? [], last?.pending_count ?? 0, "Nicht verschoben:"));
+      last
+        ? h("p.note", {}, "Wenn Sie zufrieden sind, können Sie den Ordner ", h("code", {}, "_Aussortiert"),
+          " später selbst löschen. Bis dahin lässt sich alles mit „Rückgängig“ zurückholen.")
+        : h("p.note", {}, "Alle Bilder liegen unverändert im Album. Bitte die Ursache beheben und noch einmal „Übernehmen …“ wählen."),
+      failureList(last?.pending ?? report.failed, last?.pending_count ?? report.failed_count, "Nicht verschoben:"));
     const retry = last?.pending_count
       ? h("button.ghost", { type: "button", onclick: () => dlg.run(() => api.applyRetry(albumId, last.batch_id), applied) }, "Erneut versuchen")
       : null;
