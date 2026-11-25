@@ -1,6 +1,6 @@
 // Design 2 "Scanner": photos travel as holograms along a curved line through a light gate and
 // come out as real pictures. The arch of the gate carries the progress.
-import { clamp, easeOut, glowSprite, lerp } from "./stage.js";
+import { clamp, easeOut, glowSprite, lerp } from "./util.js";
 
 const GOLD = "255,176,46";
 const PALE = "255,232,196";
@@ -39,8 +39,9 @@ export function holo() {
     photoGap: 500,
     draw(ctx, S) {
       const cx = S.w * 0.5;
-      const horizon = S.h * 0.34;
-      const f = S.h * 0.76;
+      const narrow = S.w < 900;
+      const horizon = S.h * (narrow ? 0.5 : 0.34);
+      const f = S.h * (narrow ? 0.5 : 0.76);
       const cam = 0.98; // height of the line above the floor
       const t = S.t;
       const burst = S.mode === "done" ? clamp(S.since / 1.2) : 0;

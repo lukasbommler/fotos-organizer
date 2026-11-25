@@ -1,0 +1,48 @@
+/* Only for the design previews: page shell, jump bar, narrow screens. */
+html { height: 100%; background: var(--graphite-0); }
+body { height: 100%; background: var(--graphite-0); color: var(--paper); isolation: isolate; font-family: var(--font-ui); font-size: 15px; }
+.bar { padding-left: max(1.25rem, env(safe-area-inset-left, 0px)); padding-right: max(1.25rem, env(safe-area-inset-right, 0px)); }
+.designs { gap: 0; }
+.jump { min-height: 1.9rem; padding: 0 0.85rem; background: transparent; border: 1px solid var(--hairline-strong); font-size: 0.78rem; color: var(--paper-dim); cursor: pointer; }
+.jump + .jump { border-left: 0; }
+.jump:hover { color: var(--paper); background: var(--graphite-2); }
+.jump[aria-current="true"] { background: var(--amber); border-color: var(--amber); color: var(--amber-ink); font-weight: 600; }
+.bar > .readout { display: none; }
+.bar:has(#tally:not([hidden])) .design-label { display: inline; }
+
+@media (max-width: 900px) {
+  .bar { flex-wrap: wrap; gap: 0.5rem 1rem; white-space: normal; }
+  .bar.status .status-text { display: none; }
+  .tally-head { order: 3; }
+  .designs { margin-left: 0; }
+  .hud, :root[data-design] .hud { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-template-areas: "title" "core" "side" "foot"; overflow: hidden auto; align-content: start; }
+  :root[data-design] .hud .lead { max-width: none; }
+  .hud-title, .hud-side { padding-right: 0; }
+  :root[data-design="orbit"] .hud-core { min-height: 21rem; max-width: 12rem; align-content: center; }
+  :root[data-design="holo"] .hud-core { min-width: 0; margin-top: 15rem; }
+  :root[data-design="nova"] .hud-core { margin-top: 13rem; }
+  :root[data-design="nova"] .hud .percent { font-size: 4.5rem; }
+  .hud .recent-list { max-height: none; }
+  .hud-core { width: auto; }
+  .toolbar, .subbar { gap: 0.6rem 1rem; padding-inline: 1rem; }
+  .toolbar .tabs { overflow-x: auto; max-width: 100%; }
+  .toolbar .mode { margin-left: 0; max-width: 100%; }
+  .toolbar .mode-opt { padding: 0 0.6rem; font-size: 0.78rem; }
+  .filters { flex-wrap: wrap; gap: 0.4rem 1rem; }
+  .review { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto minmax(26rem, 1fr); overflow: hidden auto; }
+  .sheet { overflow-x: hidden; }
+  .subbar { padding-block: 0.5rem; }
+  .bundle-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 22px 14px; }
+  .open-head { flex-wrap: wrap; gap: 0.5rem 1rem; }
+  .open-foot { flex-wrap: wrap; }
+  .series-row .decision { width: 132px; }
+  .xl { left: 0.75rem !important; right: 0.75rem !important; width: auto !important; }
+  .xl-info { flex-wrap: wrap; }
+  .xl-name { display: none; }
+  .viewer-body { grid-template-columns: 2.4rem minmax(0, 1fr) 2.4rem; grid-template-rows: minmax(0, 1fr) auto; overflow-y: auto; }
+  .viewer-side { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--hairline); }
+  .viewer-bar { flex-wrap: wrap; }
+  .apply-actions { gap: 0.5rem; }
+  .dialog { padding: 1.5rem 1.25rem; }
+  .dialog-backdrop { padding: 1rem; }
+}

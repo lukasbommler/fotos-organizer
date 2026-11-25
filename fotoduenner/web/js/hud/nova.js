@@ -1,6 +1,6 @@
 // Design 3 "Sternkarte": every photo of the album is a star of a turning galaxy that lights up
 // from the centre outwards. Photos rise from their star, are measured and sink back as light.
-import { clamp, easeInOut, easeOut, glowSprite, lerp } from "./stage.js";
+import { clamp, easeInOut, easeOut, glowSprite, lerp } from "./util.js";
 
 const TAU = Math.PI * 2;
 const GOLDEN = 2.399963;

@@ -1,6 +1,6 @@
 // Design 1 "Reaktor": concentric instrument rings around a glowing core. Photos fly in, are
 // scanned in orbit and drawn into the ring, whose ticks are the real progress.
-import { clamp, easeInOut, easeOut, glowSprite, lerp } from "./stage.js";
+import { clamp, easeInOut, easeOut, glowSprite, lerp } from "./util.js";
 
 const TAU = Math.PI * 2;
 const ICE = "70,217,255";
@@ -98,7 +98,7 @@ export function orbit() {
     draw(ctx, S) {
       const x = S.core?.x ?? S.w / 2;
       const y = S.core?.y ?? S.h / 2;
-      const R = Math.min(S.h * 0.235, S.w * 0.14);
+      const R = S.w < 900 ? Math.min(S.w * 0.31, 130) : Math.min(S.h * 0.235, S.w * 0.14);
       const burst = S.mode === "done" ? clamp(S.since / 1.2) : 0;
       const t = S.t;
 
