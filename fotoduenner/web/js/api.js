@@ -41,6 +41,7 @@ export const api = {
   decision: (id, photoIds, manual) =>
     request("POST", `/api/album/${id}/decision`, { photo_ids: photoIds, manual }),
   settings: (id, changes) => request("POST", `/api/album/${id}/settings`, changes),
+  seen: (id, items) => request("POST", `/api/album/${id}/seen`, { items }),
   rethin: (id) => request("POST", `/api/album/${id}/rethin`),
   applyPreview: (id) => request("POST", `/api/album/${id}/apply/preview`),
   apply: (id, photoIds) => request("POST", `/api/album/${id}/apply`, { photo_ids: photoIds }),

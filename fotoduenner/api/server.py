@@ -6,12 +6,12 @@ import asyncio
 import json
 from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from fotoduenner import __version__
 from fotoduenner.api.security import make_guard, new_token
@@ -43,6 +43,10 @@ class DecisionRequest(BaseModel):
     photo_id: int | None = None
     photo_ids: list[int] | None = None  # group actions ("alle behalten", "zurücksetzen")
     manual: Literal["keep", "reject"] | None = None
+
+
+class SeenRequest(BaseModel):
+    items: list[tuple[int, Annotated[int, Field(ge=1, le=7)], bool]]  # id, how, shown proposal
 
 
 class ApplyRequest(BaseModel):
@@ -137,6 +141,11 @@ def create_app(
         if not ids:
             raise ApiError(422, "Kein Bild angegeben.")
         return state.set_decision(album_id, ids, body.manual)
+
+    @app.post("/api/album/{album_id}/seen")
+    def seen(album_id: str, body: SeenRequest) -> dict[str, bool]:
+        state.add_seen(album_id, body.items)
+        return {"ok": True}
 
     @app.post("/api/album/{album_id}/rethin")
     def rethin(album_id: str) -> dict[str, Any]:

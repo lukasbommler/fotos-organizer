@@ -2,6 +2,7 @@
 // Synchronous zoom/pan comes later (T14).
 import { api } from "./api.js";
 import { circleMark, strikeMark } from "./marks.js";
+import { LARGE_DWELL_MS, SEEN } from "./seen.js";
 import { stateWord } from "./tiles.js";
 import { fmt, h } from "./util.js";
 
@@ -71,7 +72,9 @@ export function openCompare({ store, ids, onClose }) {
   }
 
   ids.slice(0, 4).forEach((id, i) => panes.push(pane(id, i)));
+  const seenTimer = setTimeout(() => panes.forEach((p) => store.seen?.mark(p.id, SEEN.large)), LARGE_DWELL_MS * 2);
   const close = () => {
+    clearTimeout(seenTimer);
     document.removeEventListener("keydown", onKey, true);
     unsubscribe();
     root.remove();

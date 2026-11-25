@@ -185,3 +185,52 @@ def test_record_contains_no_image_data_and_stays_in_the_data_folder(
     conn.close()
     assert not {"thumb", "image", "data"} & columns
     assert np.max(sizes) <= 2048
+
+
+def _seen(state: AppState, album_id: str) -> dict[str, int]:
+    snapshot = state.session(album_id).review.snapshot()  # type: ignore[union-attr]
+    assert snapshot is not None
+    column = calibration.DECISION_COLUMNS.index("seen")
+    return {r["rel_path"]: snapshot.decisions[r["id"]][column] for r in snapshot.rows}
+
+
+def test_seen_photos_count_only_for_the_proposal_they_showed(album: Path) -> None:
+    state = AppState(Config(analysis_workers=0))
+    album_id = _open(state, album)
+    ids = _ids(state, album_id)
+    copy, single = ids["Kopie/0.jpg"], ids["5.jpg"]
+    state.add_seen(album_id, [(copy, 1, False), (single, 2, True), (99999, 1, True)])
+    state.add_seen(album_id, [(copy, 4, False)])  # large view later on
+    assert _seen(state, album_id)["Kopie/0.jpg"] == 5
+    assert _seen(state, album_id)["5.jpg"] == 2 and _seen(state, album_id)["4.jpg"] == 0
+    # shown as "keep" but the proposal is "sort out" now (mode or slider changed): not seen
+    state.add_seen(album_id, [(copy, 2, True)])
+    assert _seen(state, album_id)["Kopie/0.jpg"] == 0
+    state.add_seen(album_id, [(copy, 2, False)])
+    assert _seen(state, album_id)["Kopie/0.jpg"] == 2  # earlier looks are gone, this one counts
+
+    _apply(state, album_id)
+    (record,) = calibration.load()
+    seen = {r["rel_path"]: r["seen"] for r in record.rows}
+    assert seen["Kopie/0.jpg"] == 2 and seen["5.jpg"] == 2 and seen["4.jpg"] == 0
+    # "übernommen": nothing is proposed, so nothing is noted either
+    state.add_seen(album_id, [(ids["4.jpg"], 7, True)])
+    state.rethin(album_id)
+    assert _seen(state, album_id)["4.jpg"] == 0
+
+
+def test_seen_is_not_noted_when_records_are_switched_off(album: Path) -> None:
+    state = AppState(Config(analysis_workers=0, calibration_records=False))
+    album_id = _open(state, album)
+    state.add_seen(album_id, [(_ids(state, album_id)["5.jpg"], 7, True)])
+    assert set(_seen(state, album_id).values()) == {0}
+
+
+def test_records_from_before_the_seen_column_stay_readable(album: Path) -> None:
+    state = AppState(Config(analysis_workers=0))
+    _apply(state, _open(state, album))
+    with sqlite3.connect(calibration_path()) as conn:
+        conn.execute("ALTER TABLE photos DROP COLUMN seen")
+    conn.close()
+    (record,) = calibration.load()
+    assert all(r["seen"] is None for r in record.rows)

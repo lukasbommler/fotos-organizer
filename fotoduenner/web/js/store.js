@@ -95,10 +95,12 @@ export class ReviewStore {
     this.emit({ type: "decisions", ids, structure });
   }
 
-  /** Manual value that yields `keep` for this photo; null when it equals the proposal. */
+  /** Manual value that yields `keep` for this photo; null when it equals the proposal.
+   *  Keeping a "Bitte prüfen" photo is a decision of its own: it confirms the photo. */
   manualFor(id, keep) {
     const d = this.decision(id);
     if (keep === null) return null;
+    if (keep && d.auto_review) return "keep";
     return keep === d.auto ? null : keep ? "keep" : "reject";
   }
 
@@ -151,8 +153,9 @@ export class ReviewStore {
       for (const id of list) {
         const d = { ...this.decision(id), manual };
         d.keep = manual === null ? d.auto : manual === "keep";
+        d.review = manual === null && Boolean(d.auto_review);
         if (manual === "reject") d.reason = "Von Ihnen aussortiert.";
-        if (manual === "keep") { d.reason = null; d.review = false; }
+        if (manual === "keep") d.reason = null;
         this.decisions.set(id, d);
         ids.push(id);
       }

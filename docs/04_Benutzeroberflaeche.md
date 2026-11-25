@@ -83,6 +83,7 @@ HTML-Oberfläche in einem **eigenen Programmfenster** (pywebview / Edge WebView2
 |---|---|---|
 | Entscheidung umdrehen | Klick auf Kachel | Leertaste |
 | Behalten / aussortieren erzwingen | Rechtsklick-Menü | K / X |
+| „Bitte prüfen“ bestätigen (A34) | Rechtsklick-Menü „Geprüft – behalten“ | K |
 | Bündel auf-/zuklappen | Klick auf Bündel | Enter / Esc |
 | Großansicht | Doppelklick | Enter (auf Kachel) |
 | Navigation | – | Pfeiltasten, Bild↑/Bild↓ = nächste Gruppe |
@@ -131,6 +132,7 @@ Dialog „Übernehmen“:
 | GET | `/api/album/{id}/view` | alle Bilder + `review`: Gruppen, Entscheidungen, Begründungen, Statistik (A30; Reiter/Filter im Frontend) |
 | POST | `/api/album/{id}/settings` | Modus, Zielquote, Gruppierungsstärke, Optionen → Diff |
 | POST | `/api/album/{id}/decision` | `{photo_id | photo_ids, manual: keep|reject|null}` → Diff (mehrere Bilder für Gruppen-Aktionen) |
+| POST | `/api/album/{id}/seen` | `{items: [[Bild, Art, gezeigter Vorschlag]]}` – angesehene Bilder (A34) |
 | POST | `/api/album/{id}/rethin` | „Erneut ausdünnen“ eines übernommenen Albums |
 | GET | `/api/album/{id}/photo/{pid}/thumb?size=s|l&v=…` | Vorschau (Foto-IDs gelten je Album, A18) |
 | GET | `/api/album/{id}/photo/{pid}/full` | Original aufrecht als JPEG (100 %-Zoom, A31) |

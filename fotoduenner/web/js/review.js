@@ -5,6 +5,7 @@ import { openCompare } from "./compare.js";
 import { api } from "./api.js";
 import { applyFlow, retryFlow, undoFlow } from "./dialogs.js";
 import { daySections, renderSheet, TILE_SIZES } from "./grid.js";
+import { SeenTracker } from "./seen.js";
 import { ReviewStore } from "./store.js";
 import { decisionTile, TileRegistry } from "./tiles.js";
 import { fill, fmt, h, throttle } from "./util.js";
@@ -25,7 +26,10 @@ const prefs = { tab: "groups", tileSize: 1, filters: { people: false, changed: f
 /** Mount the review screen into `main`. `ctx` = {setStatus, setCrumb, setFooter, startScreen, reload}. */
 export function mountReview(main, view, ctx) {
   const store = new ReviewStore(view.album_id, view);
-  const registry = new TileRegistry();
+  const sheet = h("div.sheet", { tabindex: "-1" });
+  const seen = new SeenTracker(store, sheet);
+  store.seen = seen;
+  const registry = new TileRegistry(seen);
   const selection = new Set();
   let current = null; // {kind, destroy, ids?, bundles?, sheet?}
   let menu = null;
@@ -46,7 +50,11 @@ export function mountReview(main, view, ctx) {
   const undoApplied = h("button.ghost", { type: "button", disabled: !lastBatch,
     title: lastBatch ? `Übernahme vom ${fmt.when(lastBatch.created_at)} rückgängig machen` : "Steht nach dem Übernehmen zur Verfügung",
     onclick: () => undoFlow(store.albumId, lastBatch, ctx.reload) }, "Rückgängig");
-  const apply = h("button.primary", { type: "button", onclick: () => applyFlow(store.albumId, ctx.reload) }, "Übernehmen …");
+  const apply = h("button.primary", { type: "button", onclick: async () => {
+    await store.queue; // the last click has to arrive before the summary is computed
+    await seen.flush();
+    applyFlow(store.albumId, ctx.reload);
+  } }, "Übernehmen …");
   ctx.setFooter(rejectSum, h("span.apply-actions", {}, undoApplied, apply));
 
   // after "Übernehmen" (T2): status line, "Erneut ausdünnen", files that were not moved
@@ -127,7 +135,7 @@ export function mountReview(main, view, ctx) {
         else if (!d.keep && QUALITY.has(d.code)) bad.push(p.id);
       }
       return { sections: [
-        { title: "Bitte prüfen", note: `${fmt.num(review.length)} Bilder – bleiben, bis Sie entscheiden`, ids: review },
+        { title: "Bitte prüfen", note: `${fmt.num(review.length)} Bilder – bleiben, wenn Sie nichts ändern · K bestätigt, X sortiert aus`, ids: review },
         { title: "Technisch schwach", note: `${fmt.num(bad.length)} Bilder – Vorschlag: aussortieren`, ids: bad },
       ], count: review.length + bad.length };
     }
@@ -239,7 +247,6 @@ export function mountReview(main, view, ctx) {
     sizeButtons.forEach((b, j) => b.setAttribute("aria-pressed", String(j === prefs.tileSize)));
   }
 
-  const sheet = h("div.sheet", { tabindex: "-1" });
   main.replaceChildren(
     h("div.toolbar", {},
       h("div.tabs", { role: "tablist" }, tabButtons),
@@ -355,7 +362,7 @@ export function mountReview(main, view, ctx) {
     const id = Number(tile.dataset.id);
     const d = store.decision(id);
     openMenu(x, y, [
-      { label: "Behalten", kbd: "K", disabled: d.unanalysed || d.keep, action: () => store.setKeep([id], true) },
+      { label: d.review ? "Geprüft – behalten" : "Behalten", kbd: "K", disabled: d.unanalysed || (d.keep && !d.review), action: () => store.setKeep([id], true) },
       { label: "Aussortieren", kbd: "X", disabled: d.unanalysed || !d.keep, action: () => store.setKeep([id], false) },
       { label: "Vorschlag wiederherstellen", disabled: !d.manual, action: () => store.setKeep([id], null) },
       { label: "Großansicht", kbd: "Enter", action: () => openFromTile(tile) },
@@ -366,7 +373,7 @@ export function mountReview(main, view, ctx) {
     const r = anchor.getBoundingClientRect();
     const auto = g.ids.filter((id) => store.decision(id).manual);
     openMenu(r.left, r.bottom + 4, [
-      { label: "Alle behalten", disabled: g.ids.every((id) => store.decision(id).keep), action: () => store.setKeep(g.ids, true) },
+      { label: "Alle behalten", disabled: g.ids.every((id) => store.decision(id).keep && !store.decision(id).review), action: () => store.setKeep(g.ids, true) },
       { label: "Vorschlag wiederherstellen", disabled: !auto.length, action: () => store.setKeep(g.ids, null) },
       { label: "Alle im Vergleich (bis 4)", disabled: g.ids.length < 2, action: () => {
         selection.clear();
@@ -529,6 +536,7 @@ export function mountReview(main, view, ctx) {
   return {
     destroy() {
       unsubscribe();
+      seen.destroy();
       clearTimeout(flashTimer);
       current?.destroy?.();
       document.removeEventListener("keydown", onGlobalKey);

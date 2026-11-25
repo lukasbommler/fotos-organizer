@@ -277,6 +277,7 @@ class AppState:
 
     def view(self, album_id: str) -> dict[str, Any]:
         session = self.session(album_id)
+        run_state = session.state  # once: "done" must never come without its review
         with contextlib.closing(session.store.connect()) as conn:
             rows = conn.execute(
                 "SELECT id, rel_path, width, height, size, status, rating, taken_at, mtime_ns,"
@@ -302,7 +303,7 @@ class AppState:
             for index, r in enumerate(rows)
         ]
         review = None
-        if session.state != "running" and any(r["status"] == "done" for r in rows):
+        if run_state != "running" and any(r["status"] == "done" for r in rows):
             review = self._review(session).full()
         with contextlib.closing(session.store.connect()) as conn:
             applied = mover.status(conn)
@@ -310,7 +311,7 @@ class AppState:
             "album_id": album_id,
             "name": session.store.root.name,
             "path": str(session.store.root),
-            "state": session.state,
+            "state": run_state,
             "photos": photos,
             "review": review,
             "apply": applied,
@@ -338,6 +339,12 @@ class AppState:
             return self._review(self.session(album_id)).set_manual(photo_ids, manual)
         except KeyError:
             raise ApiError(404, "Bild nicht gefunden oder noch nicht analysiert.") from None
+
+    def add_seen(self, album_id: str, items: list[tuple[int, int, bool]]) -> None:
+        session = self.session(album_id)
+        if not session.cfg.calibration_records or session.state == "running" or session.moving:
+            return
+        self._review(session).add_seen(items)
 
     def rethin(self, album_id: str) -> dict[str, Any]:
         return self._review(self.session(album_id)).rethin()

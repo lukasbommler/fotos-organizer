@@ -60,9 +60,9 @@ export function updateTile(fig, store, fresh = true) {
   marks.replaceChildren(...[
     d.unanalysed ? null : d.keep ? circleMark(id) : strikeMark(id),
     d.review ? h("span.review-flag", { title: "Bitte prüfen" }, "!") : null,
-    d.manual ? h("span.hand", { title: "Von Ihnen geändert" }, icon("hand")) : null,
+    d.manual ? h("span.hand", { title: "Von Ihnen entschieden" }, icon("hand")) : null,
   ].filter(Boolean));
-  const reason = d.reason ?? (d.manual === "keep" ? "Von Ihnen behalten." : "");
+  const reason = d.reason ?? (d.manual === "keep" ? (d.auto_review ? "Von Ihnen geprüft." : "Von Ihnen behalten.") : "");
   fig.querySelector(".reason").textContent = reason;
   const name = photo?.name ?? "";
   tile.title = reason ? `${name}\n${reason}` : name;
@@ -72,16 +72,24 @@ export function updateTile(fig, store, fresh = true) {
 
 /** Registry id -> tile figures currently on screen (a photo can appear twice, e.g. copies). */
 export class TileRegistry {
-  constructor() { this.map = new Map(); }
+  /** `seen` (optional) = SeenTracker that watches which tiles are on screen. */
+  constructor(seen = null) { this.map = new Map(); this.seen = seen; }
   add(fig) {
     const id = Number(fig.dataset.id);
     if (!this.map.has(id)) this.map.set(id, new Set());
     this.map.get(id).add(fig);
+    this.seen?.observe(fig);
     return fig;
   }
   update(store, ids) {
     for (const id of ids) for (const fig of this.map.get(id) ?? []) updateTile(fig, store, true);
   }
-  remove(fig) { this.map.get(Number(fig.dataset.id))?.delete(fig); }
-  clear() { this.map.clear(); }
+  remove(fig) {
+    this.map.get(Number(fig.dataset.id))?.delete(fig);
+    this.seen?.unobserve(fig);
+  }
+  clear() {
+    this.map.clear();
+    this.seen?.reset();
+  }
 }

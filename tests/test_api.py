@@ -282,3 +282,36 @@ def test_apply_hold_rethin_and_undo(client: TestClient, tmp_path: Path) -> None:
     copy_id = next(p["id"] for p in view["photos"] if p["rel_path"] == "Kopie/a.jpg")
     assert states[copy_id]["keep"] is False  # the proposal is back as before
     assert client.post(f"{base}/undo", headers=POST).status_code == 409
+
+
+def test_please_check_photo_can_be_confirmed(client: TestClient, tmp_path: Path) -> None:
+    """Keeping a "Bitte prüfen" photo is a decision: the mark goes, the choice is stored."""
+    from PIL import Image, ImageFilter
+
+    album = tmp_path / "Album"
+    for k in range(24):
+        make_jpeg(album / f"{k:02d}.jpg", seed=k, taken=f"2025:08:{k + 1:02d} 11:00:00")
+    with Image.open(album / "07.jpg") as img:
+        exif = img.getexif()
+        img.filter(ImageFilter.GaussianBlur(9)).save(album / "07.jpg", exif=exif, quality=90)
+    album_id = client.post("/api/album/open", json={"path": str(album)}, headers=POST).json()[
+        "album_id"
+    ]
+    client.post(f"/api/album/{album_id}/analyze", headers=POST)
+    view = _wait_done(client, album_id)
+    blurred = next(p["id"] for p in view["photos"] if p["name"] == "07.jpg")
+    before = {d["id"]: d for d in view["review"]["decisions"]}[blurred]
+    assert before["keep"] and before["review"] and before["auto_review"]
+
+    url = f"/api/album/{album_id}/decision"
+    diff = client.post(url, json={"photo_id": blurred, "manual": "keep"}, headers=POST).json()
+    (after,) = diff["changed"]
+    assert after["keep"] and after["manual"] == "keep" and not after["review"]
+    assert after["auto_review"] and after["reason"] is None
+    assert diff["stats"]["review"] == view["review"]["stats"]["review"] - 1
+    back = client.post(url, json={"photo_id": blurred, "manual": None}, headers=POST).json()
+    assert back["changed"][0]["review"] is True
+
+    seen = f"/api/album/{album_id}/seen"
+    assert client.post(seen, json={"items": [[blurred, 4, True]]}, headers=POST).json()["ok"]
+    assert client.post(seen, json={"items": [[blurred, 9, True]]}, headers=POST).status_code == 422

@@ -87,6 +87,11 @@ CREATE TABLE IF NOT EXISTS batches(
   state TEXT,                            -- 'running' | 'applied' | 'undoing' | 'reverted' | 'empty'
   count_before INTEGER                   -- photos in the album before this batch (T2)
 );
+CREATE TABLE IF NOT EXISTS seen(          -- looked at by the user (D20), local only
+  photo_id INTEGER PRIMARY KEY REFERENCES photos(id) ON DELETE CASCADE,
+  how INTEGER NOT NULL,                  -- bits: 1 open group, 2 tab, 4 large view/comparison
+  shown INTEGER NOT NULL                 -- proposal shown at that moment: 1 keep, 0 sort out
+);
 CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT);
 """
 
@@ -575,6 +580,27 @@ class AlbumStore:
                 " ON CONFLICT(photo_id) DO UPDATE SET manual=excluded.manual",
                 (photo_id, manual),
             )
+
+    @staticmethod
+    def add_seen(conn: sqlite3.Connection, items: Iterable[tuple[int, int, bool]]) -> None:
+        """Photos the user looked at: (photo id, how, shown proposal). Unknown ids are ignored.
+
+        With another proposal than before, the earlier looks do not count any more.
+        """
+        with conn:
+            conn.executemany(
+                "INSERT INTO seen(photo_id, how, shown) SELECT id, ?, ? FROM photos WHERE id=?"
+                " ON CONFLICT(photo_id) DO UPDATE SET how = CASE WHEN shown = excluded.shown"
+                " THEN how | excluded.how ELSE excluded.how END, shown = excluded.shown",
+                [(how, int(shown), photo_id) for photo_id, how, shown in items],
+            )
+
+    @staticmethod
+    def seen(conn: sqlite3.Connection) -> dict[int, tuple[int, int]]:
+        return {
+            r["photo_id"]: (r["how"], r["shown"])
+            for r in conn.execute("SELECT photo_id, how, shown FROM seen")
+        }
 
     @staticmethod
     def get_settings(conn: sqlite3.Connection) -> dict[str, str]:

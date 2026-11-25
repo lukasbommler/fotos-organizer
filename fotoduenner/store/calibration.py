@@ -49,7 +49,16 @@ FEATURE_COLUMNS = (
     "zeroshot",
     "faces",
 )
-DECISION_COLUMNS = ("auto_keep", "auto_review", "auto_code", "auto_ref", "manual", "final_keep")
+# seen: bits as in AlbumStore.add_seen, 0 = never looked at with this proposal, NULL = unknown
+DECISION_COLUMNS = (
+    "auto_keep",
+    "auto_review",
+    "auto_code",
+    "auto_ref",
+    "manual",
+    "seen",
+    "final_keep",
+)
 
 SCHEMA = f"""
 CREATE TABLE IF NOT EXISTS records(
@@ -114,6 +123,8 @@ def _open(data_root: Path | None) -> Iterator[sqlite3.Connection]:
     try:
         conn.row_factory = sqlite3.Row
         conn.executescript(SCHEMA)
+        if "seen" not in {r["name"] for r in conn.execute("PRAGMA table_info(photos)")}:
+            conn.execute("ALTER TABLE photos ADD COLUMN seen")  # records of 2026-11-25
         yield conn
     finally:
         conn.close()

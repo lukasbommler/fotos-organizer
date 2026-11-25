@@ -65,7 +65,8 @@ class Layout:
 class Decisions:
     keep: np.ndarray  # final, manual decisions applied
     auto_keep: np.ndarray
-    review: np.ndarray  # "Bitte prüfen" (kept, yellow mark)
+    review: np.ndarray  # "Bitte prüfen" (kept, yellow mark), not yet decided by the user
+    auto_review: np.ndarray  # the same before manual decisions
     reasons: list[Reason | None]
     keep_floor: float | None = None  # quota: share that the protection rules keep anyway
     target: int | None = None  # quota: photos to keep automatically
@@ -260,6 +261,7 @@ def decide(layout: Layout, settings: Settings, manual: Mapping[int, str], cfg: C
     for i in np.flatnonzero(soft_review & ~auto_keep):
         if reasons[i] is not None and reasons[i].code == "blur_review":  # type: ignore[union-attr]
             reasons[i] = None
+    auto_review = review.copy()
     keep = auto_keep.copy()
     for i, choice in manual.items():
         if choice == "keep":
@@ -277,6 +279,7 @@ def decide(layout: Layout, settings: Settings, manual: Mapping[int, str], cfg: C
         keep=keep,
         auto_keep=auto_keep,
         review=review,
+        auto_review=auto_review,
         reasons=reasons,
         keep_floor=keep_floor,
         target=target,
@@ -300,6 +303,7 @@ def hold(n: int, manual: Mapping[int, str]) -> Decisions:
         keep=keep,
         auto_keep=np.ones(n, dtype=bool),
         review=review,
+        auto_review=review.copy(),
         reasons=reasons,
         stats=_stats(keep, reasons, review),
     )

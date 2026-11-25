@@ -2,6 +2,7 @@
 // 100 % zoom on the original (Z or click), debug view (D).
 import { api } from "./api.js";
 import { circleMark, strikeMark } from "./marks.js";
+import { LARGE_DWELL_MS, SEEN } from "./seen.js";
 import { stateWord } from "./tiles.js";
 import { cropMarks, fill, fmt, h } from "./util.js";
 
@@ -298,8 +299,10 @@ export function openViewer({ albumId, photos, index, onClose, store = null }) {
   });
   img.addEventListener("click", (e) => toggleZoom(e));
 
+  let seenTimer = null;
   function show(i) {
     if (i < 0 || i >= photos.length) return;
+    clearTimeout(seenTimer);
     if (zoomed) toggleZoom();
     current = i;
     const photo = photos[i];
@@ -327,7 +330,12 @@ export function openViewer({ albumId, photos, index, onClose, store = null }) {
     }
   }
 
-  img.addEventListener("load", () => root.classList.remove("is-loading"));
+  img.addEventListener("load", () => {
+    root.classList.remove("is-loading");
+    clearTimeout(seenTimer);
+    const id = photos[current]?.id;
+    seenTimer = setTimeout(() => store?.seen?.mark(id, SEEN.large), LARGE_DWELL_MS);
+  });
   img.addEventListener("error", () => root.classList.remove("is-loading"));
 
   const unsubscribe = store?.subscribe((event) => {
@@ -375,6 +383,7 @@ export function openViewer({ albumId, photos, index, onClose, store = null }) {
   }
 
   function close() {
+    clearTimeout(seenTimer);
     document.removeEventListener("keydown", onKey, true);
     unsubscribe?.();
     root.classList.add("is-closing");

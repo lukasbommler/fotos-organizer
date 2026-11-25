@@ -164,7 +164,7 @@ export async function applyFlow(albumId, onFinished) {
     problems.length ? h("ul.warnings", {}, problems.map((w) => h("li", {}, h("span.mark", { "aria-hidden": "true" }, "!"), w))) : null,
     h("p.path", { title: "Zielordner" }, pre.target),
     pre.recorded
-      ? h("p.note", {}, "Zur Feinabstimmung merkt sich FotoDünner Vorschlag und Ihre Entscheidung je Bild – nur auf diesem PC.")
+      ? h("p.note", {}, "Zur Feinabstimmung merkt sich FotoDünner je Bild den Vorschlag, Ihre Entscheidung und ob Sie es angesehen haben – nur auf diesem PC.")
       : null);
   const go = h("button.primary", { type: "button", disabled: !pre.photos || pre.blocking.length > 0,
     onclick: () => dlg.run(() => api.apply(albumId, pre.photo_ids), applied) }, "Verschieben");

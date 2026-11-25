@@ -152,6 +152,7 @@ class Review:
             bool(d.auto_keep[i]),
             manual.get(i),
             bool(d.review[i]),
+            bool(d.auto_review[i]),
             text(reason, self._ref_label(layout, reason)) if reason else None,
             reason.code if reason else None,
             ref,
@@ -159,13 +160,14 @@ class Review:
 
     @staticmethod
     def _state_json(pid: int, st: tuple[Any, ...]) -> dict[str, Any]:
-        keep, auto, manual, review, reason, code, ref = st
+        keep, auto, manual, review, auto_review, reason, code, ref = st
         return {
             "id": pid,
             "keep": keep,
             "auto": auto,
             "manual": manual,
             "review": review,
+            "auto_review": auto_review,
             "reason": reason,
             "code": code,
             "ref": ref,
@@ -303,6 +305,13 @@ class Review:
             ids = [int(engine.inp.ids[i]) for i in np.flatnonzero(~d.keep)]
             return ids, self._stats(d, settings)
 
+    def add_seen(self, items: list[tuple[int, int, bool]]) -> None:
+        """Photos the user looked at (D20); without a proposal there is nothing to agree with."""
+        if self._flags()["hold"]:
+            return
+        with contextlib.closing(self.store.connect()) as conn:
+            self.store.add_seen(conn, items)
+
     def snapshot(self) -> Snapshot | None:
         """Proposal and manual decisions for the calibration record (D20).
 
@@ -318,16 +327,19 @@ class Review:
             ids = engine.inp.ids
             with contextlib.closing(self.store.connect()) as conn:
                 rows = [r for r in self.store.selection_rows(conn) if r["id"] in self.index]
+                seen = self.store.seen(conn)
             decisions: dict[int, tuple[Any, ...]] = {}
             for i in range(engine.n):
                 reason = auto.reasons[i]
                 ref = None if reason is None or reason.ref is None else int(ids[reason.ref])
+                how, shown = seen.get(int(ids[i]), (0, 0))
                 decisions[int(ids[i])] = (
                     int(auto.auto_keep[i]),
                     int(auto.review[i]),
                     reason.code if reason else None,
                     ref,
                     manual.get(i),
+                    how if shown == int(auto.auto_keep[i]) else 0,
                 )
             return Snapshot(settings, rows, decisions, dict(self._shifts))
 
